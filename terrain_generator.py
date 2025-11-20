@@ -237,6 +237,7 @@ class WorldGenerator:
         plt.show()
 
 # Generate and visualize
-world = WorldGenerator(width=150, height=100, seed=42)
-world.generate_world(sea_level=0.42)
-world.visualize()
+if __name__ == "__main__":
+    world = WorldGenerator(width=150, height=100, seed=42)
+    world.generate_world(sea_level=0.42)
+    world.visualize()
