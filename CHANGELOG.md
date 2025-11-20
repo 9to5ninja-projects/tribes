@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.5.0] - 2025-11-20
+## [0.6.0] - 2024-03-21
+### Added
+- `events_ecology.py`: Added scavengers, avian creatures, and aquatic life.
+- Implemented disease outbreaks affecting herbivores and predators.
+- Implemented natural disasters (wildfires, floods, blizzards) that affect terrain and life.
+- Added visualization for the complete ecosystem including all new species and events.
+
+## [0.5.0] - 2024-03-21
 ### Added
 - Predator system (`predator_system.py`)
   - Carnivore species (Wolf, Lion, Bear, Leopard, Arctic Fox)
