@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-11-20
+### Added
+- Animal system (`animal_system.py`)
+  - Herbivore species with unique traits (Deer, Bison, Caribou, Gazelle, Elephant)
+  - Agency-based behaviors: Movement, Feeding, Reproduction
+  - Population dynamics and energy metabolism
+  - Migration logic based on biome preference and climate comfort
+
 ## [0.3.0] - 2025-11-20
 ### Added
 - Vegetation system (`vegetation_system.py`)
