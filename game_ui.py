@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 from game_controller import GameState, WorldConfig, SaveSystem
+from game_renderer import TileRenderer, TooltipManager
 import os
 from datetime import datetime
 
@@ -198,6 +199,208 @@ class WorldConfigScreen:
         self.back_button.draw(self.screen)
 
 
+class StatisticsOverlay:
+    """Overlay for displaying population graphs"""
+    def __init__(self, x, y, width, height, game_state):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.game = game_state
+        self.font = pygame.font.Font(None, 20)
+        self.title_font = pygame.font.Font(None, 32)
+        self.mode = 'herbivores'  # 'herbivores' or 'predators'
+        
+        # Buttons
+        btn_w = 120
+        self.herb_btn = Button(x + 20, y + 20, btn_w, 30, "Herbivores", GREEN)
+        self.pred_btn = Button(x + 150, y + 20, btn_w, 30, "Predators", RED)
+        self.food_btn = Button(x + 280, y + 20, btn_w, 30, "Food Chain", ORANGE)
+        self.death_btn = Button(x + 410, y + 20, btn_w, 30, "Deaths", GRAY)
+        self.close_btn = Button(x + width - 40, y + 10, 30, 30, "X", RED)
+        
+    def handle_event(self, event):
+        if self.herb_btn.handle_event(event):
+            self.mode = 'herbivores'
+            return True
+        if self.pred_btn.handle_event(event):
+            self.mode = 'predators'
+            return True
+        if self.food_btn.handle_event(event):
+            self.mode = 'food_chain'
+            return True
+        if self.death_btn.handle_event(event):
+            self.mode = 'deaths'
+            return True
+        if self.close_btn.handle_event(event):
+            return 'close'
+        return False
+        
+    def draw(self, screen):
+        # Background
+        s = pygame.Surface((self.rect.width, self.rect.height))
+        s.set_alpha(230)
+        s.fill(DARK_GRAY)
+        screen.blit(s, (self.rect.x, self.rect.y))
+        pygame.draw.rect(screen, WHITE, self.rect, 2)
+        
+        # Buttons
+        self.herb_btn.draw(screen)
+        self.pred_btn.draw(screen)
+        self.food_btn.draw(screen)
+        self.death_btn.draw(screen)
+        self.close_btn.draw(screen)
+        
+        if self.mode in ['herbivores', 'predators']:
+            self._draw_graphs(screen)
+        elif self.mode == 'food_chain':
+            self._draw_food_chain(screen)
+        elif self.mode == 'deaths':
+            self._draw_deaths(screen)
+
+    def _draw_food_chain(self, screen):
+        """Draw food chain matrix"""
+        stats = self.game.get_current_statistics()
+        food_chain = stats.get('food_chain', {})
+        
+        if not food_chain:
+            text = self.font.render("No predation data yet", True, WHITE)
+            screen.blit(text, (self.rect.centerx - 50, self.rect.centery))
+            return
+            
+        # Title
+        title = self.title_font.render("Predation Statistics (Who ate Whom)", True, WHITE)
+        screen.blit(title, (self.rect.x + 50, self.rect.y + 70))
+        
+        # List predators and their prey
+        y_offset = 120
+        x_offset = self.rect.x + 50
+        
+        # Sort predators by total kills
+        sorted_preds = sorted(food_chain.items(), key=lambda x: sum(x[1].values()), reverse=True)
+        
+        for predator, prey_dict in sorted_preds:
+            total_kills = sum(prey_dict.values())
+            pred_text = self.font.render(f"{predator.capitalize()} (Total Kills: {total_kills})", True, ORANGE)
+            screen.blit(pred_text, (x_offset, self.rect.y + y_offset))
+            
+            # List top prey
+            prey_x = x_offset + 200
+            sorted_prey = sorted(prey_dict.items(), key=lambda x: x[1], reverse=True)
+            
+            prey_str = ", ".join([f"{p.capitalize()}: {c}" for p, c in sorted_prey[:5]])
+            if len(sorted_prey) > 5:
+                prey_str += "..."
+                
+            prey_surf = self.font.render(prey_str, True, LIGHT_GRAY)
+            screen.blit(prey_surf, (prey_x, self.rect.y + y_offset))
+            
+            y_offset += 30
+            if y_offset > self.rect.height - 50:
+                break
+
+    def _draw_deaths(self, screen):
+        """Draw causes of death"""
+        stats = self.game.get_current_statistics()
+        death_causes = stats.get('death_causes', {})
+        
+        if not death_causes:
+            text = self.font.render("No death data yet", True, WHITE)
+            screen.blit(text, (self.rect.centerx - 50, self.rect.centery))
+            return
+            
+        # Title
+        title = self.title_font.render("Causes of Death", True, WHITE)
+        screen.blit(title, (self.rect.x + 50, self.rect.y + 70))
+        
+        y_offset = 120
+        x_offset = self.rect.x + 50
+        
+        # Sort by total deaths
+        sorted_species = sorted(death_causes.items(), key=lambda x: sum(x[1].values()), reverse=True)
+        
+        for species, causes in sorted_species:
+            total = sum(causes.values())
+            species_text = self.font.render(f"{species.capitalize()} (Total Deaths: {total})", True, GREEN)
+            screen.blit(species_text, (x_offset, self.rect.y + y_offset))
+            
+            # Breakdown
+            breakdown_x = x_offset + 200
+            parts = []
+            for cause, count in causes.items():
+                pct = int(count / total * 100)
+                parts.append(f"{cause}: {count} ({pct}%)")
+            
+            breakdown_str = " | ".join(parts)
+            breakdown_surf = self.font.render(breakdown_str, True, LIGHT_GRAY)
+            screen.blit(breakdown_surf, (breakdown_x, self.rect.y + y_offset))
+            
+            y_offset += 30
+            if y_offset > self.rect.height - 50:
+                break
+
+    def _draw_graphs(self, screen):
+        # Get data
+        history = self.game.get_population_history()
+        data = history.get(self.mode, {})
+        
+        if not data:
+            text = self.font.render("No data available", True, WHITE)
+            screen.blit(text, (self.rect.centerx - 50, self.rect.centery))
+            return
+
+        # Graph area
+        graph_rect = pygame.Rect(self.rect.x + 50, self.rect.y + 80, 
+                               self.rect.width - 70, self.rect.height - 100)
+        pygame.draw.rect(screen, BLACK, graph_rect)
+        pygame.draw.rect(screen, WHITE, graph_rect, 1)
+        
+        # Find max value for scaling
+        max_val = 10
+        max_len = 0
+        for species_data in data.values():
+            if species_data:
+                max_val = max(max_val, max(species_data))
+                max_len = max(max_len, len(species_data))
+        
+        if max_len < 2:
+            return
+
+        # Draw grid lines
+        for i in range(5):
+            y = graph_rect.bottom - (i * graph_rect.height / 4)
+            pygame.draw.line(screen, DARK_GRAY, (graph_rect.left, y), (graph_rect.right, y))
+            val = int(i * max_val / 4)
+            text = self.font.render(str(val), True, LIGHT_GRAY)
+            screen.blit(text, (graph_rect.left - 35, y - 10))
+            
+        # Draw lines
+        colors = {
+            'deer': (139, 69, 19), 'bison': (100, 50, 0), 'caribou': (200, 200, 200),
+            'gazelle': (255, 165, 0), 'elephant': (128, 0, 128), 'rabbit': (255, 255, 255),
+            'wolf': (100, 100, 100), 'lion': (255, 215, 0), 'bear': (80, 40, 0),
+            'leopard': (200, 150, 50), 'polar_bear': (240, 240, 255), 'crocodile': (0, 100, 0)
+        }
+        
+        x_step = graph_rect.width / (max_len - 1) if max_len > 1 else 0
+        
+        for species, points in data.items():
+            if not points: continue
+            
+            color = colors.get(species, (np.random.randint(100, 255), np.random.randint(100, 255), np.random.randint(100, 255)))
+            
+            # Draw line
+            prev_pos = None
+            for i, val in enumerate(points):
+                x = graph_rect.left + i * x_step
+                y = graph_rect.bottom - (val / max_val * graph_rect.height)
+                pos = (x, y)
+                
+                if prev_pos:
+                    pygame.draw.line(screen, color, prev_pos, pos, 2)
+                prev_pos = pos
+            
+            # Legend (simple)
+            # (In a real app, we'd layout a proper legend)
+
+
 class GameView:
     """Main game view - displays the world and controls"""
     def __init__(self, screen, game_state):
@@ -205,15 +408,13 @@ class GameView:
         self.game = game_state
         self.width, self.height = screen.get_size()
         
-        # Map viewport
-        self.map_rect = pygame.Rect(0, 0, self.width - 300, self.height)
-        self.map_surface = None
-        self.update_map_surface()
+        # Viewport dimensions (sidebar is 300px)
+        viewport_width = self.width - 300
+        viewport_height = self.height
         
-        # Camera
-        self.camera_x = 0
-        self.camera_y = 0
-        self.zoom = 1.0
+        # Initialize Renderer
+        self.renderer = TileRenderer(self.game, viewport_width, viewport_height)
+        self.tooltip = TooltipManager()
         
         # UI panel
         self.panel_rect = pygame.Rect(self.width - 300, 0, 300, self.height)
@@ -222,9 +423,14 @@ class GameView:
         button_x = self.width - 280
         self.play_pause_button = Button(button_x, 50, 260, 40, "Play", GREEN)
         self.step_button = Button(button_x, 100, 260, 40, "Step Turn", BLUE)
-        self.save_button = Button(button_x, 160, 260, 40, "Save Game", ORANGE)
-        self.load_button = Button(button_x, 210, 260, 40, "Load Game", ORANGE)
-        self.menu_button = Button(button_x, 270, 260, 40, "Main Menu", RED)
+        self.stats_button = Button(button_x, 160, 260, 40, "Statistics", YELLOW)
+        self.save_button = Button(button_x, 220, 260, 40, "Save Game", ORANGE)
+        self.load_button = Button(button_x, 270, 260, 40, "Load Game", ORANGE)
+        self.menu_button = Button(button_x, 330, 260, 40, "Main Menu", RED)
+        
+        # Stats Overlay
+        self.show_stats = False
+        self.stats_overlay = StatisticsOverlay(50, 50, viewport_width - 100, viewport_height - 100, self.game)
         
         # Game state
         self.playing = False
@@ -239,64 +445,44 @@ class GameView:
         self.dragging = False
         self.drag_start = (0, 0)
     
-    def update_map_surface(self):
-        """Render the world to a surface"""
-        if not self.game.world:
-            return
-        
-        world_width = self.game.world.width
-        world_height = self.game.world.height
-        
-        # Create surface for the map
-        self.map_surface = pygame.Surface((world_width, world_height))
-        
-        # Draw biomes
-        for y in range(world_height):
-            for x in range(world_width):
-                biome = self.game.world.biomes[y, x]
-                color = BIOME_COLORS.get(biome, BLACK)
-                
-                # Modulate by vegetation
-                veg = self.game.vegetation.density[y, x]
-                if biome >= 3:  # Land biomes get darker with more vegetation
-                    color = tuple(int(c * (0.7 + veg * 0.3)) for c in color)
-                
-                self.map_surface.set_at((x, y), color)
-        
-        # Draw animals (simplified - just dots)
-        # Herbivores
-        for animal in self.game.animals.herbivores:
-            color = (210, 180, 140)  # Tan
-            if 0 <= animal.x < world_width and 0 <= animal.y < world_height:
-                self.map_surface.set_at((animal.x, animal.y), color)
-        
-        # Predators
-        for pred in self.game.predators.predators:
-            color = (255, 0, 0)  # Red
-            if 0 <= pred.x < world_width and 0 <= pred.y < world_height:
-                self.map_surface.set_at((pred.x, pred.y), color)
-        
-        # Avian (bright yellow dots)
-        for bird in self.game.ecology.avian_creatures:
-            color = (255, 255, 0)
-            if 0 <= bird.x < world_width and 0 <= bird.y < world_height:
-                self.map_surface.set_at((bird.x, bird.y), color)
-
-        # Scavengers (brown dots)
-        for scavenger in self.game.ecology.scavengers:
-            color = (139, 69, 19)  # SaddleBrown
-            if 0 <= scavenger.x < world_width and 0 <= scavenger.y < world_height:
-                self.map_surface.set_at((scavenger.x, scavenger.y), color)
-
-        # Aquatic (cyan dots)
-        for aquatic in self.game.ecology.aquatic_creatures:
-            color = (0, 255, 255)  # Cyan
-            if 0 <= aquatic.x < world_width and 0 <= aquatic.y < world_height:
-                self.map_surface.set_at((aquatic.x, aquatic.y), color)
-    
     def handle_events(self, events):
         for event in events:
+            # Pass events to renderer
+            if event.type == pygame.MOUSEMOTION:
+                self.renderer.handle_mouse_motion(event.pos)
+                if self.dragging:
+                    dx = event.pos[0] - self.drag_start[0]
+                    dy = event.pos[1] - self.drag_start[1]
+                    # Convert pixel drag to tile drag (approximate)
+                    tile_dx = -dx / self.renderer.tile_size
+                    tile_dy = -dy / self.renderer.tile_size
+                    self.renderer.pan_camera(tile_dx, tile_dy)
+                    self.drag_start = event.pos
+
+            elif event.type == pygame.MOUSEWHEEL:
+                # Check if mouse is in viewport
+                mx, my = pygame.mouse.get_pos()
+                if mx < self.renderer.viewport_width:
+                    self.renderer.zoom_at_point((mx, my), 1.1 if event.y > 0 else 0.9)
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1 and event.pos[0] < self.renderer.viewport_width:
+                    self.dragging = True
+                    self.drag_start = event.pos
+            
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.dragging = False
+
             # Buttons
+            if self.show_stats:
+                res = self.stats_overlay.handle_event(event)
+                if res == 'close':
+                    self.show_stats = False
+                # Don't process other clicks if stats are open
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    return None
+            
             if self.play_pause_button.handle_event(event):
                 self.playing = not self.playing
                 self.play_pause_button.text = "Pause" if self.playing else "Play"
@@ -304,7 +490,9 @@ class GameView:
             
             if self.step_button.handle_event(event):
                 self.game.advance_turn()
-                self.update_map_surface()
+                
+            if self.stats_button.handle_event(event):
+                self.show_stats = not self.show_stats
             
             if self.save_button.handle_event(event):
                 self.save_game()
@@ -314,28 +502,6 @@ class GameView:
             
             if self.menu_button.handle_event(event):
                 return 'menu'
-            
-            # Map dragging
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if self.map_rect.collidepoint(event.pos):
-                    self.dragging = True
-                    self.drag_start = event.pos
-            
-            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                self.dragging = False
-            
-            elif event.type == pygame.MOUSEMOTION and self.dragging:
-                dx = event.pos[0] - self.drag_start[0]
-                dy = event.pos[1] - self.drag_start[1]
-                self.camera_x -= dx / self.zoom
-                self.camera_y -= dy / self.zoom
-                self.drag_start = event.pos
-            
-            # Zoom with mouse wheel
-            elif event.type == pygame.MOUSEWHEEL:
-                if self.map_rect.collidepoint(pygame.mouse.get_pos()):
-                    zoom_factor = 1.1 if event.y > 0 else 0.9
-                    self.zoom = np.clip(self.zoom * zoom_factor, 0.5, 10.0)
         
         return None
     
@@ -345,7 +511,6 @@ class GameView:
             current_time = pygame.time.get_ticks()
             if current_time - self.last_update > self.update_interval:
                 self.game.advance_turn()
-                self.update_map_surface()
                 self.last_update = current_time
     
     def save_game(self):
@@ -387,23 +552,11 @@ class GameView:
     def draw(self):
         self.screen.fill(BLACK)
         
-        # Draw map
-        if self.map_surface:
-            # Calculate scaled size
-            scaled_width = int(self.game.world.width * self.zoom)
-            scaled_height = int(self.game.world.height * self.zoom)
-            
-            # Scale the map surface
-            scaled_surface = pygame.transform.scale(
-                self.map_surface, 
-                (scaled_width, scaled_height)
-            )
-            
-            # Apply camera offset
-            offset_x = int(-self.camera_x * self.zoom)
-            offset_y = int(-self.camera_y * self.zoom)
-            
-            self.screen.blit(scaled_surface, (offset_x, offset_y))
+        # Draw map via renderer
+        self.renderer.render(self.screen)
+        
+        # Draw tooltip
+        self.tooltip.render_tooltip(self.screen, self.game, self.renderer.hovered_tile, pygame.mouse.get_pos())
         
         # Draw UI panel
         pygame.draw.rect(self.screen, DARK_GRAY, self.panel_rect)
@@ -418,13 +571,14 @@ class GameView:
         # Buttons
         self.play_pause_button.draw(self.screen)
         self.step_button.draw(self.screen)
+        self.stats_button.draw(self.screen)
         self.save_button.draw(self.screen)
         self.load_button.draw(self.screen)
         self.menu_button.draw(self.screen)
         
         # Statistics
         stats = self.game.get_current_statistics()
-        stats_y = 330
+        stats_y = 390
         stats_x = self.panel_rect.x + 10
         
         stats_lines = [
@@ -454,6 +608,7 @@ class GameView:
             f"Scavengers: {stats['populations'].get('scavengers', 0)}",
             f"Avian: {stats['populations'].get('avian', 0)}",
             f"Aquatic: {stats['populations'].get('aquatic', 0)}",
+            f"Insects: {stats['populations'].get('insects', 0)}",
         ])
         
         # Events
@@ -463,6 +618,13 @@ class GameView:
                 f"Diseases: {stats['events']['active_diseases']}",
                 f"Disasters: {stats['events']['active_disasters']}",
             ])
+            
+        # Event Log (Last 5)
+        if 'event_log' in self.game.statistics and self.game.statistics['event_log']:
+            stats_lines.append("")
+            stats_lines.append("=== Recent Events ===")
+            for event in self.game.statistics['event_log'][-5:]:
+                stats_lines.append(f"{event['time']}: {event['msg']}")
         
         for i, line in enumerate(stats_lines):
             text_surf = self.font.render(line, True, WHITE)
@@ -477,6 +639,10 @@ class GameView:
         for i, inst in enumerate(instructions):
             text_surf = self.font.render(inst, True, LIGHT_GRAY)
             self.screen.blit(text_surf, (stats_x, inst_y + i * 20))
+            
+        # Draw overlay if active
+        if self.show_stats:
+            self.stats_overlay.draw(self.screen)
 
 
 class MainMenu:

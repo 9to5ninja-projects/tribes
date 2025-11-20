@@ -4,6 +4,66 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.12.0] - 2025-11-20
+### Added
+- **Full Ecology Integration**:
+  - Integrated **Birds (Avian)**, **Fish (Aquatic)**, **Scavengers**, and **Insects** into the core simulation loop.
+  - These species now have tracked populations, lifecycles, and death causes.
+- **Deep Observability Suite**:
+  - **Food Chain Analysis**: New UI tab showing a matrix of "Who Ate Whom" (e.g., Raptor -> Songbird, Bear -> Salmon).
+  - **Death Cause Tracking**: New UI tab breaking down mortality by specific causes:
+    - Predation (linked to specific predators)
+    - Starvation
+    - Old Age
+    - Disease (by type)
+    - Natural Disasters (Wildfire, Flood, Blizzard)
+- **Event Logging**:
+  - Added detailed logging for "Unknown" events like disease outbreaks and natural disasters to help debug population crashes.
+- **UI Enhancements**:
+  - Updated Statistics Overlay to support text-based matrices (Food Chain/Deaths) alongside line graphs.
+  - Added population counters for all ecological layers (Insects, Avian, Aquatic) to the main sidebar.
+
+## [0.11.0] - 2025-11-20
+### Changed
+- **Hardcore Ecology**:
+  - Disabled "Safety Net" migrations. Extinctions are now permanent and frequent for unadapted species.
+  - Simulation results show realistic population crashes for specialists (e.g., Polar Bears, Snow Leopards) if they fail to adapt.
+- **Movement Logic Fixes**:
+  - Implemented strict terrain traversal checks. Land animals can no longer cross deep ocean or shallow ocean tiles unless they have the `can_swim` trait.
+  - Fixed "Bears in the Ocean" bug.
+- **Simulation Analysis**:
+  - Enhanced `run_simulation.py` to provide detailed annual death reports broken down by cause (Starvation, Predation, Old Age, Cold, Heat).
+  - Added stability scoring to the final report.
+
+## [0.10.0] - 2025-11-20
+### Added
+- **Expanded Bestiary**: Added 11 new species across diverse biomes:
+  - Cold: Musk Ox, Polar Bear, Snow Leopard.
+  - Temperate/Arid: Red Fox, Boar, Jackal, Rabbit.
+  - Reptiles/Amphibians: Crocodile, Snake, Iguana, Frog, Giant Toad.
+- **Mortality System**:
+  - Implemented `EnvironmentalStats` for all species.
+  - Added aging mechanics with `max_age` and probabilistic death.
+  - Added environmental stress: Creatures take damage when outside their `min_temp`/`max_temp` comfort zones.
+  - Added `cold_blooded` trait for reptiles/amphibians (double damage from cold).
+- **Simulation Tool**: Created `run_simulation.py` for headless, long-term (30+ year) ecosystem stability testing with detailed annual reports.
+- **Detailed Death Tracking**: System now tracks and reports specific causes of death (Starvation, Predation, Old Age, Cold, Heat).
+
+### Changed
+- **Predator AI Overhaul**:
+  - Predators now move *before* hunting to close the gap.
+  - Increased predator detection range and movement speed to handle fleeing prey.
+  - Implemented "Sprint" mechanic for hungry predators.
+- **Prey AI Update**:
+  - Implemented "Fight or Flight" response.
+  - Fast prey (Gazelles, Rabbits) gain evasion bonuses when fleeing.
+  - Aggressive prey (Bison, Musk Ox) can counter-attack predators.
+- **Balance Tuning**:
+  - Adjusted fleeing evasion bonuses to prevent uncatchable prey.
+  - Buffed predator accuracy and ambush capabilities in cover biomes (Forest, Jungle).
+  - Tuned starvation and reproduction rates to achieve a stable "Predator Dominant" ecosystem.
+- **Visuals**: Updated `game_renderer.py` with unique procedural sprites for all new species.
+
 ## [0.9.0] - 2025-11-20
 ### Added
 - `srpg_stats.py`: Foundation for deterministic stat-based entity system (HP, ATK, DEF, SPD).
@@ -12,8 +72,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - `game_controller.py`: Integrated balance configuration and improved initialization sequence.
-- `animal_system.py`: Improved movement logic with better pathfinding and habitat sensing.
-- `predator_system.py`: Enhanced predator AI to prioritize habitat quality when not hunting.
+- `animal_system.py`: Refactored to use `srpg_stats` (CombatStats) instead of float-based energy.
+- `predator_system.py`: Refactored to use `srpg_stats` and `srpg_combat` for hunting logic.
 - `game_ui.py`: Fixed color rendering for scavengers, avian, and aquatic creatures.
 - Ecosystem Balance:
   - Reduced predator hunt success and metabolism.

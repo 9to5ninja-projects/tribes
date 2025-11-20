@@ -101,7 +101,10 @@ class GameState:
             'total_turns': 0,
             'total_births': 0,
             'total_deaths': 0,
-            'extinctions': []
+            'extinctions': [],
+            'interaction_log': [], # Detailed log of interactions
+            'death_causes': {},    # Aggregated death causes
+            'food_chain': {}       # Aggregated predation stats: {predator: {prey: count}}
         }
     
     def initialize_world(self):
@@ -138,7 +141,11 @@ class GameState:
         
         # Initialize animal systems (but don't spawn yet)
         self.animals = AnimalSystem(self.world, self.vegetation)
+        self.animals.set_logger(self.log_interaction)
+        
         self.predators = PredatorSystem(self.world, self.vegetation, self.animals)
+        self.predators.set_logger(self.log_interaction)
+        
         self.ecology = EventsEcologySystem(self.world, self.vegetation, self.animals, self.predators)
 
         # Apply balance configurations
@@ -184,6 +191,7 @@ class GameState:
         self.ecology = EventsEcologySystem(
             self.world, self.vegetation, self.animals, self.predators
         )
+        self.ecology.set_logger(self.log_interaction)
         self.ecology.spawn_scavengers(count=self.config.scavenger_population)
         self.ecology.spawn_avian_species(count=self.config.avian_population)
         self.ecology.spawn_aquatic_species(count=self.config.aquatic_population)
@@ -215,6 +223,55 @@ class GameState:
         # Track statistics
         self._update_statistics()
     
+    def get_population_history(self):
+        """Return historical population data for graphs"""
+        history = {
+            'herbivores': {},
+            'predators': {}
+        }
+        
+        if self.animals:
+            history['herbivores'] = self.animals.population_history
+            
+        if self.predators:
+            history['predators'] = self.predators.population_history
+            
+        return history
+
+    def log_interaction(self, type, actor, target=None, details=None):
+        """Log an interaction between entities"""
+        # Aggregation for stats
+        if type == 'predation':
+            predator = actor
+            prey = target
+            if predator not in self.statistics['food_chain']:
+                self.statistics['food_chain'][predator] = {}
+            if prey not in self.statistics['food_chain'][predator]:
+                self.statistics['food_chain'][predator][prey] = 0
+            self.statistics['food_chain'][predator][prey] += 1
+            
+        elif type == 'death':
+            cause = details
+            species = actor
+            if species not in self.statistics['death_causes']:
+                self.statistics['death_causes'][species] = {}
+            if cause not in self.statistics['death_causes'][species]:
+                self.statistics['death_causes'][species][cause] = 0
+            self.statistics['death_causes'][species][cause] += 1
+            self.statistics['total_deaths'] += 1
+
+    def add_event_log(self, message):
+        """Add a message to the event log"""
+        if 'event_log' not in self.statistics:
+            self.statistics['event_log'] = []
+        
+        timestamp = f"Y{self.climate.year} {self.climate._season_name()}"
+        self.statistics['event_log'].append({'turn': self.turn, 'time': timestamp, 'msg': message})
+        
+        # Keep log size manageable
+        if len(self.statistics['event_log']) > 50:
+            self.statistics['event_log'].pop(0)
+
     def _update_statistics(self):
         """Update game statistics"""
         # Check for extinctions
@@ -224,7 +281,16 @@ class GameState:
         for species, count in {**herbivore_counts, **predator_counts}.items():
             if count == 0 and species not in self.statistics['extinctions']:
                 self.statistics['extinctions'].append(species)
-                print(f"⚠️  {species.capitalize()} has gone EXTINCT!")
+                msg = f"⚠️ {species.capitalize()} has gone EXTINCT!"
+                print(msg)
+                self.add_event_log(msg)
+        
+        # Check for disasters/diseases (simplified check)
+        if self.ecology:
+            # Pull events from ecology system
+            recent_events = self.ecology.get_recent_events()
+            for event in recent_events:
+                self.add_event_log(event)
     
     def get_current_statistics(self):
         """Return current world statistics"""
@@ -234,7 +300,9 @@ class GameState:
             'season': self.climate._season_name() if self.climate else 'N/A',
             'vegetation_coverage': 0,
             'populations': {},
-            'events': {}
+            'events': {},
+            'food_chain': self.statistics.get('food_chain', {}),
+            'death_causes': self.statistics.get('death_causes', {})
         }
         
         if self.vegetation:
@@ -253,6 +321,7 @@ class GameState:
             stats['populations']['scavengers'] = ecology_stats['scavengers']
             stats['populations']['avian'] = ecology_stats['avian']
             stats['populations']['aquatic'] = ecology_stats['aquatic']
+            stats['populations']['insects'] = ecology_stats['insects']
             stats['events'] = {
                 'active_diseases': ecology_stats['active_diseases'],
                 'active_disasters': ecology_stats['active_disasters'],
@@ -431,6 +500,7 @@ class SaveSystem:
             game_state.world, game_state.vegetation, 
             game_state.animals, game_state.predators
         )
+        game_state.ecology.set_logger(game_state.log_interaction)
         
         for s_data in save_data['scavengers']:
             from events_ecology import Scavenger

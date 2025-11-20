@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+from srpg_stats import create_stats_from_template, HERBIVORE_STATS
+from srpg_combat import CombatResolver
 
 class Animal:
     """Base class for all animal species"""
@@ -8,9 +10,24 @@ class Animal:
         self.x = x
         self.y = y
         self.species = species_name
-        self.energy = 1.0  # 0.0 = death, 1.0 = full health
+        
+        # Initialize stats from template
+        template = HERBIVORE_STATS.get(species_name, HERBIVORE_STATS['deer'])
+        self.combat_stats = create_stats_from_template(template)
+        self.movement_stats = template['movement']
+        self.env_stats = template.get('environment', None)
+        
         self.age = 0
         self.reproductive_cooldown = 0
+        self.cause_of_death = None
+    
+    @property
+    def energy(self):
+        return self.combat_stats.hp_percentage()
+    
+    @energy.setter
+    def energy(self, value):
+        self.combat_stats.current_hp = int(max(0, min(1.0, value)) * self.combat_stats.max_hp)
     
     def move(self, dx, dy, world_width, world_height):
         """Move with wrapping at world edges"""
@@ -18,32 +35,27 @@ class Animal:
         self.y = (self.y + dy) % world_height
     
     def consume_energy(self, amount):
-        """Reduce energy (metabolism, movement cost)"""
-        self.energy = max(0, self.energy - amount)
+        """Reduce HP (metabolism)"""
+        # Convert float amount (0.0-1.0) to HP damage roughly
+        # 0.1 energy ~= 10% HP
+        damage = int(amount * self.combat_stats.max_hp)
+        if damage > 0:
+            self.combat_stats.take_damage(damage)
     
     def gain_energy(self, amount):
-        """Increase energy (from eating)"""
-        self.energy = min(1.0, self.energy + amount)
+        """Increase HP (from eating)"""
+        heal = int(amount * self.combat_stats.max_hp)
+        self.combat_stats.heal(heal)
     
     def is_alive(self):
-        return self.energy > 0
+        return self.combat_stats.is_alive()
     
     def can_reproduce(self):
-        return self.energy > 0.6 and self.reproductive_cooldown == 0 and self.age > 2
-
-
-class HerbivoreSpecies:
-    """Defines characteristics of a herbivore species"""
-    def __init__(self, name, preferred_biomes, temp_range, food_efficiency, 
-                 reproduction_rate, metabolism, max_age, migration_tendency):
-        self.name = name
-        self.preferred_biomes = preferred_biomes  # List of biome IDs
-        self.temp_range = temp_range  # (min, max) comfortable temperature
-        self.food_efficiency = food_efficiency  # Energy gained per vegetation consumed
-        self.reproduction_rate = reproduction_rate  # Offspring per breeding event
-        self.metabolism = metabolism  # Energy consumed per turn
-        self.max_age = max_age  # Lifespan in turns
-        self.migration_tendency = migration_tendency  # How likely to move (0-1)
+        template = HERBIVORE_STATS.get(self.species, HERBIVORE_STATS['deer'])
+        threshold = template.get('reproduction_threshold', 20)
+        return (self.combat_stats.current_hp >= threshold and 
+                self.reproductive_cooldown == 0 and 
+                self.age > 8)  # Increased age requirement
 
 
 class AnimalSystem:
@@ -52,67 +64,23 @@ class AnimalSystem:
         self.vegetation = vegetation_system
         self.width = world_generator.width
         self.height = world_generator.height
+        self.combat_resolver = CombatResolver(world_generator)
         
         # Animal populations
         self.herbivores = []
+        self.logger_callback = None # Function to call for logging interactions
         
-        # Define herbivore species
-        self.herbivore_species = {
-            'deer': HerbivoreSpecies(
-                name='Deer',
-                preferred_biomes=[5, 7],  # Grassland, Temperate Forest
-                temp_range=(0.3, 0.7),
-                food_efficiency=0.15,
-                reproduction_rate=2,
-                metabolism=0.08,
-                max_age=40,
-                migration_tendency=0.3
-            ),
-            'bison': HerbivoreSpecies(
-                name='Bison',
-                preferred_biomes=[5],  # Grassland
-                temp_range=(0.3, 0.8),
-                food_efficiency=0.12,
-                reproduction_rate=1,
-                metabolism=0.10,
-                max_age=50,
-                migration_tendency=0.5
-            ),
-            'caribou': HerbivoreSpecies(
-                name='Caribou',
-                preferred_biomes=[8, 9],  # Taiga, Tundra
-                temp_range=(0.0, 0.4),
-                food_efficiency=0.10,
-                reproduction_rate=1,
-                metabolism=0.07,
-                max_age=45,
-                migration_tendency=0.7  # Highly migratory
-            ),
-            'gazelle': HerbivoreSpecies(
-                name='Gazelle',
-                preferred_biomes=[4],  # Savanna
-                temp_range=(0.5, 0.9),
-                food_efficiency=0.13,
-                reproduction_rate=2,
-                metabolism=0.09,
-                max_age=35,
-                migration_tendency=0.6
-            ),
-            'elephant': HerbivoreSpecies(
-                name='Elephant',
-                preferred_biomes=[4, 6],  # Savanna, Rainforest
-                temp_range=(0.6, 1.0),
-                food_efficiency=0.08,
-                reproduction_rate=1,
-                metabolism=0.12,  # Large = high metabolism
-                max_age=80,
-                migration_tendency=0.4
-            )
-        }
+        # Use SRPG stats instead of local definitions
+        self.herbivore_species = HERBIVORE_STATS
         
         # Statistics tracking
         self.population_history = {species: [] for species in self.herbivore_species.keys()}
+        self.recent_deaths = {} # Stores death counts by cause for the last update
         
+    def set_logger(self, callback):
+        """Set callback for logging interactions"""
+        self.logger_callback = callback
+
     def spawn_initial_populations(self, population_per_species=50):
         """Place initial herbivore populations in suitable habitats"""
         for species_name, species_data in self.herbivore_species.items():
@@ -120,108 +88,200 @@ class AnimalSystem:
             attempts = 0
             max_attempts = population_per_species * 10
             
+            movement_stats = species_data['movement']
+            preferred_biomes = [b for b, m in movement_stats.terrain_preferences.items() if m >= 0.8]
+            
             while spawned < population_per_species and attempts < max_attempts:
                 attempts += 1
                 x = np.random.randint(0, self.width)
                 y = np.random.randint(0, self.height)
                 
                 biome = self.world.biomes[y, x]
-                temp = self.world.temperature[y, x]
                 veg_density = self.vegetation.density[y, x]
                 
                 # Check if location is suitable
-                if (biome in species_data.preferred_biomes and
-                    species_data.temp_range[0] <= temp <= species_data.temp_range[1] and
-                    veg_density > 0.2):  # Need some food
-                    
+                if (biome in preferred_biomes and veg_density > 0.2):
                     animal = Animal(x, y, species_name)
-                    animal.energy = np.random.uniform(0.5, 0.8)
+                    # Start with 80-100% HP
+                    start_hp_percent = np.random.uniform(0.8, 1.0)
+                    animal.combat_stats.current_hp = int(animal.combat_stats.max_hp * start_hp_percent)
                     self.herbivores.append(animal)
                     spawned += 1
             
             print(f"  🦌 Spawned {spawned} {species_name}")
     
-    def update(self, climate_engine):
+    def update(self, climate_engine, predators_list=None):
         """Update all animal behaviors for one turn"""
+        # Build spatial map for fast neighbor lookups
+        # Key: (x, y), Value: list of animals
+        self.spatial_map = {}
+        for animal in self.herbivores:
+            pos = (animal.x, animal.y)
+            if pos not in self.spatial_map:
+                self.spatial_map[pos] = []
+            self.spatial_map[pos].append(animal)
+
+        # Build predator map if provided
+        predator_map = {}
+        if predators_list:
+            for p in predators_list:
+                pos = (p.x, p.y)
+                if pos not in predator_map:
+                    predator_map[pos] = []
+                predator_map[pos].append(p)
+
         # Age and metabolism
         for animal in self.herbivores:
+            if not animal.is_alive(): continue
+
             animal.age += 1
-            species_data = self.herbivore_species[animal.species]
             
-            # Base metabolism cost
-            animal.consume_energy(species_data.metabolism)
+            # Base metabolism cost (1 HP per turn + age factor)
+            metabolism_cost = 1
             
-            # Age-related death
-            if animal.age > species_data.max_age:
-                animal.energy = 0
+            # Mortality check (Old Age)
+            if animal.env_stats and animal.age > animal.env_stats.max_age:
+                # Chance to die increases with years past max age
+                over_age = animal.age - animal.env_stats.max_age
+                death_chance = 0.05 + (over_age * 0.02)
+                if np.random.random() < death_chance:
+                    animal.combat_stats.current_hp = 0
+                    animal.cause_of_death = 'old_age'
+                    continue
+            
+            # Legacy age penalty (keep for non-env stats animals if any)
+            elif animal.age > 40:  
+                metabolism_cost += 1
+            
+            # Environmental checks
+            if animal.env_stats:
+                # Temperature check
+                local_temp = climate_engine.world.temperature[animal.y, animal.x]
+                
+                # Cold stress
+                if local_temp < animal.env_stats.min_temp:
+                    diff = animal.env_stats.min_temp - local_temp
+                    damage = int(diff * 20) # Significant damage
+                    if animal.env_stats.cold_blooded:
+                        damage = int(damage * 2.0) # Cold blooded suffer double
+                    
+                    if damage > 0:
+                        animal.combat_stats.take_damage(damage)
+                        if not animal.is_alive() and animal.cause_of_death is None:
+                            animal.cause_of_death = 'cold'
+                
+                # Heat stress
+                if local_temp > animal.env_stats.max_temp:
+                    diff = local_temp - animal.env_stats.max_temp
+                    damage = int(diff * 20)
+                    if damage > 0:
+                        animal.combat_stats.take_damage(damage)
+                        if not animal.is_alive() and animal.cause_of_death is None:
+                            animal.cause_of_death = 'heat'
+
+            if animal.is_alive():
+                animal.combat_stats.take_damage(metabolism_cost)
+                if not animal.is_alive() and animal.cause_of_death is None:
+                    animal.cause_of_death = 'starvation'
             
             # Cooldown
             if animal.reproductive_cooldown > 0:
                 animal.reproductive_cooldown -= 1
         
         # Behavior phase
-        for animal in list(self.herbivores):  # Copy list since we may add offspring
+        new_offspring = []
+        for animal in self.herbivores:
             if not animal.is_alive():
                 continue
             
             species_data = self.herbivore_species[animal.species]
             
             # 1. Movement decision
-            self._move_animal(animal, species_data, climate_engine)
+            self._move_animal(animal, species_data, climate_engine, predator_map if predators_list else None)
+            
+            # Update spatial map after move (remove from old, add to new)
+            # Note: For strict correctness we should update the map, but for performance
+            # we can accept using the start-of-turn map for reproduction checks
+            # or just rebuild it if we really need to. 
+            # Actually, reproduction happens after movement, so using old map is slightly wrong.
+            # But rebuilding is expensive. Let's just use the old map for "nearby" checks
+            # since animals don't move far (1-2 tiles).
             
             # 2. Feeding
             self._feed_animal(animal, species_data)
             
             # 3. Reproduction
             if animal.can_reproduce():
-                self._reproduce_animal(animal, species_data)
+                offspring = self._reproduce_animal(animal, species_data)
+                if offspring:
+                    new_offspring.extend(offspring)
+        
+        # Add new offspring
+        self.herbivores.extend(new_offspring)
         
         # Remove dead animals
         initial_count = len(self.herbivores)
+        
+        # Collect death stats
+        self.recent_deaths = {}
+        dead_animals = [a for a in self.herbivores if not a.is_alive()]
+        for a in dead_animals:
+            cause = a.cause_of_death if a.cause_of_death else 'unknown'
+            if cause not in self.recent_deaths:
+                self.recent_deaths[cause] = 0
+            self.recent_deaths[cause] += 1
+            
+            if self.logger_callback:
+                self.logger_callback('death', a.species, details=cause)
+            
         self.herbivores = [a for a in self.herbivores if a.is_alive()]
         deaths = initial_count - len(self.herbivores)
         
         if deaths > 0:
-            print(f"  💀 {deaths} herbivores died")
+            # print(f"  💀 {deaths} herbivores died") # Suppress detailed print here, let simulation handle it
+            pass
         
         # Track populations
         for species_name in self.herbivore_species.keys():
             count = sum(1 for a in self.herbivores if a.species == species_name)
             self.population_history[species_name].append(count)
     
-    def _move_animal(self, animal, species_data, climate_engine):
+    def _move_animal(self, animal, species_data, climate_engine, predator_map=None):
         """Decide if and where animal moves"""
+        movement_stats = animal.movement_stats
+        
         # Check current location suitability
         current_biome = self.world.biomes[animal.y, animal.x]
-        current_temp = self.world.temperature[animal.y, animal.x]
         current_food = self.vegetation.density[animal.y, animal.x]
         
-        # Migration pressure increases with:
-        # - Wrong biome
-        # - Uncomfortable temperature
-        # - Low food
-        # - Species migration tendency
+        # Habitat quality based on terrain preference
+        biome_pref = movement_stats.terrain_preferences.get(current_biome, 0.3)
+        habitat_quality = biome_pref * (0.5 + 0.5 * current_food)
         
-        biome_match = 1.0 if current_biome in species_data.preferred_biomes else 0.3
-        temp_comfort = 1.0 if species_data.temp_range[0] <= current_temp <= species_data.temp_range[1] else 0.5
-        food_availability = current_food
+        # Check for predators nearby
+        nearby_predators = []
+        if predator_map:
+            scan_radius = 4
+            for dy in range(-scan_radius, scan_radius + 1):
+                for dx in range(-scan_radius, scan_radius + 1):
+                    nx = (animal.x + dx) % self.width
+                    ny = (animal.y + dy) % self.height
+                    if (nx, ny) in predator_map:
+                        nearby_predators.append((nx, ny))
         
-        habitat_quality = biome_match * temp_comfort * (0.5 + 0.5 * food_availability)
+        # Flee if predators are close
+        is_fleeing = len(nearby_predators) > 0
         
-        # Decide to move
-        move_chance = species_data.migration_tendency * (1.0 - habitat_quality)
+        # Move if habitat is poor or hungry OR fleeing
+        should_move = habitat_quality < 0.6 or animal.combat_stats.hp_percentage() < 0.6 or is_fleeing
         
-        # Always move if starving or in bad habitat
-        if animal.energy < 0.4 or habitat_quality < 0.3:
-            move_chance = 1.0
-        
-        if np.random.random() < move_chance:
-            # Look for better location nearby (increased radius)
-            best_score = habitat_quality
+        if should_move or np.random.random() < 0.3:
+            # Look for better location nearby
+            best_score = -999 if is_fleeing else habitat_quality
             best_dx, best_dy = 0, 0
             
-            # Scan radius 2 for better pathfinding
-            scan_radius = 2
+            # Scan radius based on movement range
+            scan_radius = movement_stats.movement_range
             
             for dy in range(-scan_radius, scan_radius + 1):
                 for dx in range(-scan_radius, scan_radius + 1):
@@ -232,70 +292,107 @@ class AnimalSystem:
                     ny = (animal.y + dy) % self.height
                     
                     neighbor_biome = self.world.biomes[ny, nx]
-                    neighbor_temp = self.world.temperature[ny, nx]
+                    
+                    # Check for water traversal
+                    if not movement_stats.can_swim and neighbor_biome in [0, 1]:
+                        continue
+                        
                     neighbor_food = self.vegetation.density[ny, nx]
                     
-                    n_biome_match = 1.0 if neighbor_biome in species_data.preferred_biomes else 0.3
-                    n_temp_comfort = 1.0 if species_data.temp_range[0] <= neighbor_temp <= species_data.temp_range[1] else 0.5
+                    n_biome_pref = movement_stats.terrain_preferences.get(neighbor_biome, 0.3)
                     
-                    # Distance penalty (prefer closer good spots)
+                    # Distance penalty
                     dist = np.sqrt(dx*dx + dy*dy)
-                    dist_penalty = 1.0 / (1.0 + dist * 0.5)
+                    if dist > movement_stats.movement_range:
+                        continue
+                        
+                    dist_penalty = 1.0 / (1.0 + dist * 0.2)
                     
-                    # Herd attraction (simplified)
-                    herd_bonus = 1.0
-                    # (In a full implementation, we'd check for nearby kin)
+                    neighbor_quality = n_biome_pref * (0.5 + 0.5 * neighbor_food) * dist_penalty
                     
-                    neighbor_quality = n_biome_match * n_temp_comfort * (0.5 + 0.5 * neighbor_food) * dist_penalty
+                    # Predator avoidance score
+                    predator_penalty = 0
+                    if is_fleeing:
+                        # Calculate distance to nearest predator from this potential spot
+                        min_pred_dist = 999
+                        for px, py in nearby_predators:
+                            # Simple distance (ignoring wrap for speed in this loop, or handle it?)
+                            # Let's just use simple euclidean for local avoidance
+                            p_dist = np.sqrt((nx - px)**2 + (ny - py)**2)
+                            if p_dist < min_pred_dist:
+                                min_pred_dist = p_dist
+                        
+                        # Reward being far from predators
+                        # If spot is closer than 2 units, massive penalty
+                        if min_pred_dist < 2:
+                            predator_penalty = 100
+                        else:
+                            # Bonus for distance
+                            neighbor_quality += min_pred_dist * 2
                     
-                    if neighbor_quality > best_score:
-                        best_score = neighbor_quality
-                        # Move one step towards the best spot
-                        best_dx = int(np.sign(dx)) if abs(dx) > 0 else 0
-                        best_dy = int(np.sign(dy)) if abs(dy) > 0 else 0
+                    final_score = neighbor_quality - predator_penalty
+                    
+                    if final_score > best_score:
+                        best_score = final_score
+                        best_dx, best_dy = dx, dy
             
-            # Move to best location (or stay if current is best)
+            # Move to best location
             if best_dx != 0 or best_dy != 0:
                 animal.move(best_dx, best_dy, self.width, self.height)
-                animal.consume_energy(0.02)  # Movement cost
+                # Movement costs HP? Maybe small amount
+                # animal.combat_stats.take_damage(1)
     
     def _feed_animal(self, animal, species_data):
         """Animal attempts to eat vegetation"""
         veg_density = self.vegetation.density[animal.y, animal.x]
         
-        if veg_density > 0.05:  # Minimum vegetation to graze
-            # Consume vegetation (proportional to hunger)
-            hunger = 1.0 - animal.energy
-            consumption = min(veg_density, hunger * 0.3)  # Eat up to 30% of available
-            
-            self.vegetation.density[animal.y, animal.x] -= consumption
-            
-            # Gain energy from food
-            energy_gain = consumption * species_data.food_efficiency
-            animal.gain_energy(energy_gain)
+        # Use combat resolver for feeding
+        consumed = self.combat_resolver.resolve_herbivore_feeding(
+            animal, veg_density, species_data
+        )
+        
+        if consumed > 0:
+            self.vegetation.density[animal.y, animal.x] -= consumed
     
     def _reproduce_animal(self, animal, species_data):
         """Animal produces offspring"""
-        # Check for nearby mates (simple proximity check)
+        # Check for nearby mates using spatial map
         mate_nearby = False
-        for other in self.herbivores:
-            if other.species == animal.species and other is not animal:
-                dist = np.sqrt((other.x - animal.x)**2 + (other.y - animal.y)**2)
-                if dist < 3:
-                    mate_nearby = True
-                    break
+        search_radius = 3
         
-        if mate_nearby or np.random.random() < 0.3:  # 30% chance solo reproduction (parthenogenesis-like)
-            # Create offspring
-            for _ in range(species_data.reproduction_rate):
-                if np.random.random() < 0.7:  # 70% offspring survival
-                    offspring = Animal(animal.x, animal.y, animal.species)
-                    offspring.energy = 0.5
-                    self.herbivores.append(offspring)
+        # Check cells in radius
+        for dy in range(-search_radius, search_radius + 1):
+            for dx in range(-search_radius, search_radius + 1):
+                nx = (animal.x + dx) % self.width
+                ny = (animal.y + dy) % self.height
+                
+                if (nx, ny) in self.spatial_map:
+                    for other in self.spatial_map[(nx, ny)]:
+                        if other.species == animal.species and other is not animal:
+                            mate_nearby = True
+                            break
+                if mate_nearby:
+                    break
+            if mate_nearby:
+                break
+        
+        offspring_list = []
+        if mate_nearby:
+            offspring_count = species_data.get('offspring_count', 1)
             
-            # Reproduction cost
-            animal.consume_energy(0.3)
-            animal.reproductive_cooldown = 4  # Can't reproduce for 4 turns
+            for _ in range(offspring_count):
+                if np.random.random() < 0.8:  # 80% survival
+                    offspring = Animal(animal.x, animal.y, animal.species)
+                    # Offspring start with 50% HP
+                    offspring.combat_stats.current_hp = int(offspring.combat_stats.max_hp * 0.5)
+                    offspring_list.append(offspring)
+            
+            # Reproduction cost (HP)
+            cost = int(animal.combat_stats.max_hp * 0.3)
+            animal.combat_stats.take_damage(cost)
+            animal.reproductive_cooldown = 6
+            
+        return offspring_list
     
     def get_population_counts(self):
         """Return current population by species"""
@@ -322,7 +419,8 @@ class AnimalSystem:
                 'bison': 'darkred',
                 'caribou': 'gray',
                 'gazelle': 'orange',
-                'elephant': 'purple'
+                'elephant': 'purple',
+                'rabbit': 'white'
             }
             
             for animal in self.herbivores:
@@ -373,7 +471,7 @@ class AnimalSystem:
             
             species_colors = {
                 'deer': 'brown', 'bison': 'darkred', 'caribou': 'gray',
-                'gazelle': 'orange', 'elephant': 'purple'
+                'gazelle': 'orange', 'elephant': 'purple', 'rabbit': 'white'
             }
             
             for animal in self.herbivores:
@@ -383,6 +481,40 @@ class AnimalSystem:
             plt.title('Herbivore Distribution')
             plt.axis('off')
             plt.show()
+    
+    def spawn_migrants(self, species_name, count=5):
+        """Spawn new individuals at map edges (migration)"""
+        spawned = 0
+        attempts = 0
+        max_attempts = count * 10
+        
+        species_data = self.herbivore_species[species_name]
+        movement_stats = species_data['movement']
+        preferred_biomes = [b for b, m in movement_stats.terrain_preferences.items() if m >= 0.6]
+        
+        while spawned < count and attempts < max_attempts:
+            attempts += 1
+            # Pick an edge
+            if np.random.random() < 0.5:
+                x = np.random.choice([0, self.width - 1])
+                y = np.random.randint(0, self.height)
+            else:
+                x = np.random.randint(0, self.width)
+                y = np.random.choice([0, self.height - 1])
+            
+            biome = self.world.biomes[y, x]
+            veg_density = self.vegetation.density[y, x]
+            
+            # Check if location is suitable
+            if (biome in preferred_biomes and veg_density > 0.1):
+                animal = Animal(x, y, species_name)
+                # Migrants are usually healthy
+                animal.combat_stats.current_hp = int(animal.combat_stats.max_hp * 0.9)
+                self.herbivores.append(animal)
+                spawned += 1
+        
+        if spawned > 0:
+            print(f"  🦌 {spawned} {species_name} migrated into the area")
 
 
 # Integrated simulation

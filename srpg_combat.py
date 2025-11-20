@@ -21,12 +21,29 @@ class CombatResolver:
                               prey_stats_template, pack_members=0) -> tuple[bool, int]:
         """
         Resolve a predator hunting prey.
-        Returns: (kill_successful, damage_dealt)
+        Handles Fight or Flight response from prey.
+        Returns: (kill_successful, damage_dealt_to_prey)
         """
         # Get stats
         pred_stats = predator.combat_stats
         prey_stats = prey.combat_stats
         
+        # --- FIGHT OR FLIGHT DECISION ---
+        # Dangerous prey fight back
+        is_aggressive_prey = prey_stats.attack >= 10
+        
+        # Fast prey run away
+        speed_diff = prey_stats.speed - pred_stats.speed
+        can_flee = speed_diff > 0
+        
+        # Modifiers
+        evasion_bonus = 0
+        if can_flee and not is_aggressive_prey:
+            # Flight: Speed advantage translates to evasion
+            # NERF: Reduced multiplier from 5 to 2 to prevent uncatchable prey
+            evasion_bonus = speed_diff * 2
+            # print(f"  DEBUG: {prey.species} fleeing! +{evasion_bonus} evasion")
+            
         # Apply pack bonus
         if pack_members > 0:
             bonus = predator_stats_template.get('pack_bonus', 0) * pack_members
@@ -36,18 +53,53 @@ class CombatResolver:
         terrain = self.world.biomes[predator.y, predator.x]
         terrain_mods = TERRAIN_MODIFIERS.get(terrain, {})
         
-        # Calculate damage
+        # Ambush / Cover Bonus
+        # Forest(7), Rainforest(6), Taiga(8) provide cover for predators
+        ambush_bonus = 0
+        if terrain in [6, 7, 8]:
+            ambush_bonus = 15
+            pred_stats.accuracy += ambush_bonus
+            # Cover makes fleeing harder (surprise attack)
+            evasion_bonus = int(evasion_bonus * 0.5)
+        
+        # --- PREDATOR ATTACK ---
+        # Temporarily boost evasion if fleeing
+        original_evasion = prey_stats.evasion
+        prey_stats.evasion += evasion_bonus
+        
         damage, hit = calculate_combat_damage(pred_stats, prey_stats, terrain_mods)
         
-        # Remove pack bonus for next turn
+        # Restore evasion
+        prey_stats.evasion = original_evasion
+        
+        # Remove temporary bonuses
         if pack_members > 0:
             bonus = predator_stats_template.get('pack_bonus', 0) * pack_members
             pred_stats.attack -= bonus
+            
+        if ambush_bonus > 0:
+            pred_stats.accuracy -= ambush_bonus
         
         # Check if prey died
         kill = not prey_stats.is_alive()
         
-        # Log
+        # --- PREY COUNTER-ATTACK (If alive and aggressive) ---
+        if not kill and is_aggressive_prey and hit:
+            # Prey fights back!
+            # print(f"  DEBUG: {prey.species} fighting back!")
+            counter_damage, counter_hit = calculate_combat_damage(prey_stats, pred_stats, terrain_mods)
+            
+            if counter_hit and counter_damage > 0:
+                # Log the counter-attack
+                # self.combat_log.append({
+                #     'type': 'counter_attack',
+                #     'predator': predator.species,
+                #     'prey': prey.species,
+                #     'damage': counter_damage
+                # })
+                pass
+
+        # Log Kill
         if kill:
             self.combat_log.append({
                 'type': 'kill',

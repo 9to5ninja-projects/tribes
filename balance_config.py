@@ -105,7 +105,8 @@ CLIMATE_CONFIG = {
 def apply_balance_to_game(game_state):
     """
     Apply balance configurations to an initialized game state.
-    Call this after world generation but before starting simulation.
+    Note: With SRPG system, most stats are defined in srpg_stats.py.
+    This function now primarily handles initial population scaling.
     """
     
     # === Apply Vegetation Balance ===
@@ -122,30 +123,14 @@ def apply_balance_to_game(game_state):
     for biome_id in veg.biome_growth_rates:
         veg.biome_growth_rates[biome_id] *= VEGETATION_CONFIG['growth_multiplier']
     
-    # === Apply Herbivore Balance ===
-    animals = game_state.animals
-    for species_data in animals.herbivore_species.values():
-        species_data.metabolism *= HERBIVORE_CONFIG['metabolism_multiplier']
-        species_data.food_efficiency *= HERBIVORE_CONFIG['food_efficiency_multiplier']
-        species_data.reproduction_rate = int(
-            species_data.reproduction_rate * HERBIVORE_CONFIG['reproduction_rate_multiplier']
-        )
-    
-    # === Apply Predator Balance ===
-    predators = game_state.predators
-    for species_data in predators.predator_species.values():
-        species_data.hunt_success_rate *= PREDATOR_CONFIG['hunt_success_multiplier']
-        species_data.metabolism *= PREDATOR_CONFIG['metabolism_multiplier']
-    
     # === Apply Ecology Balance ===
-    ecology = game_state.ecology
-    ecology.disease_spawn_rate = ECOLOGY_CONFIG['disease_frequency']
-    ecology.disaster_spawn_rate = ECOLOGY_CONFIG['disaster_frequency']
+    if hasattr(game_state, 'ecology') and game_state.ecology:
+        ecology = game_state.ecology
+        ecology.disease_spawn_rate = ECOLOGY_CONFIG['disease_frequency']
+        ecology.disaster_spawn_rate = ECOLOGY_CONFIG['disaster_frequency']
     
-    print("✓ Balance configuration applied")
+    print("✓ Balance configuration applied (SRPG Stats active)")
     print(f"  - Vegetation boosted by {VEGETATION_CONFIG['initial_density_boost']}x")
-    print(f"  - Herbivore metabolism reduced by {(1-HERBIVORE_CONFIG['metabolism_multiplier'])*100:.0f}%")
-    print(f"  - Predator hunt success reduced by {(1-PREDATOR_CONFIG['hunt_success_multiplier'])*100:.0f}%")
 
 
 def get_balanced_world_config():

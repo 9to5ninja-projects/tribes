@@ -55,6 +55,15 @@ class MovementStats:
     can_fly: bool = False
 
 
+@dataclass
+class EnvironmentalStats:
+    """Environmental tolerances"""
+    cold_blooded: bool = False
+    min_temp: float = 0.0  # Minimum comfortable temperature (0.0-1.0)
+    max_temp: float = 1.0  # Maximum comfortable temperature
+    max_age: int = 100     # Maximum lifespan in turns
+
+
 # === HERBIVORE STAT DEFINITIONS ===
 HERBIVORE_STATS = {
     'deer': {
@@ -74,6 +83,9 @@ HERBIVORE_STATS = {
                 8: 0.7   # Taiga - slower
             }
         ),
+        'environment': EnvironmentalStats(
+            max_age=60  # ~15 years
+        ),
         'food_value': 15,  # HP restored when eaten
         'reproduction_threshold': 20,  # HP needed to breed
         'offspring_count': 2
@@ -81,7 +93,7 @@ HERBIVORE_STATS = {
     'bison': {
         'stats': CombatStats(
             max_hp=50, current_hp=50,
-            attack=12,  # Can fight back
+            attack=18,  # Can fight back
             defense=8,
             speed=5,    # Slow
             evasion=5
@@ -92,6 +104,9 @@ HERBIVORE_STATS = {
                 5: 1.0,  # Grassland - optimal
                 4: 0.8   # Savanna
             }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=80  # ~20 years
         ),
         'food_value': 30,
         'reproduction_threshold': 30,
@@ -113,17 +128,46 @@ HERBIVORE_STATS = {
                 10: 0.7  # Snow - possible
             }
         ),
+        'environment': EnvironmentalStats(
+            max_age=60,
+            min_temp=0.0  # Very cold tolerant
+        ),
         'food_value': 18,
         'reproduction_threshold': 20,
         'offspring_count': 1
     },
+    'musk_ox': {
+        'stats': CombatStats(
+            max_hp=80, current_hp=80,
+            attack=20,
+            defense=15,
+            speed=4,
+            evasion=0
+        ),
+        'movement': MovementStats(
+            movement_range=2,
+            terrain_preferences={
+                9: 1.0,  # Tundra - optimal
+                10: 1.0, # Snow - optimal
+                8: 0.8   # Taiga
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=90,
+            min_temp=0.0,
+            max_temp=0.6  # Overheats easily
+        ),
+        'food_value': 40,
+        'reproduction_threshold': 40,
+        'offspring_count': 1
+    },
     'gazelle': {
         'stats': CombatStats(
-            max_hp=25, current_hp=25,
+            max_hp=30, current_hp=30,
             attack=4,
             defense=2,
             speed=10,  # Fastest
-            evasion=30  # Very agile
+            evasion=35  # Agile (Reduced from 45)
         ),
         'movement': MovementStats(
             movement_range=4,
@@ -131,6 +175,10 @@ HERBIVORE_STATS = {
                 4: 1.0,  # Savanna - optimal
                 5: 0.8   # Grassland
             }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=50,
+            min_temp=0.4  # Needs warmth
         ),
         'food_value': 12,
         'reproduction_threshold': 15,
@@ -151,9 +199,85 @@ HERBIVORE_STATS = {
                 6: 1.0   # Rainforest - optimal
             }
         ),
+        'environment': EnvironmentalStats(
+            max_age=240, # ~60 years (long lived)
+            min_temp=0.4
+        ),
         'food_value': 50,
         'reproduction_threshold': 60,
         'offspring_count': 1
+    },
+    'rabbit': {
+        'stats': CombatStats(
+            max_hp=10, current_hp=10,
+            attack=1,
+            defense=1,
+            speed=9,
+            evasion=40  # Very hard to hit
+        ),
+        'movement': MovementStats(
+            movement_range=3,
+            terrain_preferences={
+                5: 1.0, 7: 1.0, 4: 1.0, 3: 0.8, 8: 0.8  # Almost everywhere
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=20  # ~5 years (short lived)
+        ),
+        'food_value': 8,
+        'reproduction_threshold': 6,
+        'offspring_count': 4
+    },
+    'iguana': {
+        'stats': CombatStats(
+            max_hp=15, current_hp=15,
+            attack=3,
+            defense=2,
+            speed=6,
+            evasion=15
+        ),
+        'movement': MovementStats(
+            movement_range=2,
+            terrain_preferences={
+                3: 1.0,  # Desert
+                6: 1.0,  # Rainforest
+                2: 1.0   # Beach
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=80,
+            cold_blooded=True,
+            min_temp=0.6  # Needs heat
+        ),
+        'food_value': 10,
+        'reproduction_threshold': 10,
+        'offspring_count': 3
+    },
+    'frog': {
+        'stats': CombatStats(
+            max_hp=5, current_hp=5,
+            attack=0,
+            defense=0,
+            speed=5,
+            evasion=25
+        ),
+        'movement': MovementStats(
+            movement_range=2,
+            terrain_preferences={
+                6: 1.0,  # Rainforest
+                12: 1.0, # Swamp (if exists, else use Forest/River logic)
+                7: 0.8   # Forest
+            },
+            can_swim=True
+        ),
+        'environment': EnvironmentalStats(
+            max_age=15,
+            cold_blooded=True,
+            min_temp=0.4
+        ),
+        'food_value': 4,
+        'reproduction_threshold': 4,
+        'offspring_count': 6
     }
 }
 
@@ -167,13 +291,16 @@ PREDATOR_STATS = {
             defense=5,
             speed=9,
             evasion=10,
-            accuracy=85  # Pack hunters - good accuracy
+            accuracy=90  # Pack hunters - good accuracy (Buffed from 85)
         ),
         'movement': MovementStats(
             movement_range=3,
             terrain_preferences={
                 5: 1.0, 7: 1.0, 8: 1.0
             }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=60
         ),
         'pack_bonus': 3,  # +3 ATK per ally
         'preferred_prey': ['deer', 'caribou', 'bison'],
@@ -187,13 +314,17 @@ PREDATOR_STATS = {
             defense=7,
             speed=8,
             evasion=8,
-            accuracy=80
+            accuracy=85 # Buffed from 80
         ),
         'movement': MovementStats(
             movement_range=3,
             terrain_preferences={
                 4: 1.0  # Savanna
             }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=60,
+            min_temp=0.5
         ),
         'pack_bonus': 4,
         'preferred_prey': ['gazelle', 'bison', 'elephant'],
@@ -215,11 +346,42 @@ PREDATOR_STATS = {
                 7: 1.0, 8: 1.0
             }
         ),
+        'environment': EnvironmentalStats(
+            max_age=100
+        ),
         'pack_bonus': 0,  # Solitary
         'preferred_prey': ['deer', 'caribou'],
         'can_eat_vegetation': True,
         'vegetation_heal': 5,  # HP per turn from vegetation
         'reproduction_threshold': 40,
+        'offspring_count': 2
+    },
+    'polar_bear': {
+        'stats': CombatStats(
+            max_hp=80, current_hp=80,
+            attack=22,
+            defense=12,
+            speed=5,
+            evasion=5,
+            accuracy=70
+        ),
+        'movement': MovementStats(
+            movement_range=3,
+            terrain_preferences={
+                10: 1.0, # Snow
+                9: 1.0,  # Tundra
+                2: 0.8   # Beach (hunting seals/fish)
+            },
+            can_swim=True
+        ),
+        'environment': EnvironmentalStats(
+            max_age=100,
+            min_temp=0.0,
+            max_temp=0.5
+        ),
+        'pack_bonus': 0,
+        'preferred_prey': ['musk_ox', 'caribou'],
+        'reproduction_threshold': 50,
         'offspring_count': 2
     },
     'leopard': {
@@ -229,7 +391,7 @@ PREDATOR_STATS = {
             defense=4,
             speed=10,
             evasion=20,  # Agile
-            accuracy=90  # Ambush specialist
+            accuracy=95  # Ambush specialist (Buffed from 90)
         ),
         'movement': MovementStats(
             movement_range=3,
@@ -237,9 +399,41 @@ PREDATOR_STATS = {
                 4: 1.0, 6: 1.0, 7: 1.0
             }
         ),
+        'environment': EnvironmentalStats(
+            max_age=60,
+            min_temp=0.4
+        ),
         'pack_bonus': 0,
         'ambush_bonus': 5,  # Extra damage when attacking from cover
         'preferred_prey': ['gazelle', 'deer'],
+        'reproduction_threshold': 28,
+        'offspring_count': 2
+    },
+    'snow_leopard': {
+        'stats': CombatStats(
+            max_hp=45, current_hp=45,
+            attack=18,
+            defense=5,
+            speed=9,
+            evasion=25,
+            accuracy=90
+        ),
+        'movement': MovementStats(
+            movement_range=3,
+            terrain_preferences={
+                11: 1.0, # Mountain
+                10: 1.0, # Snow
+                9: 0.8   # Tundra
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=60,
+            min_temp=0.0,
+            max_temp=0.6
+        ),
+        'pack_bonus': 0,
+        'ambush_bonus': 5,
+        'preferred_prey': ['musk_ox', 'caribou'],
         'reproduction_threshold': 28,
         'offspring_count': 2
     },
@@ -258,10 +452,165 @@ PREDATOR_STATS = {
                 9: 1.0, 10: 1.0
             }
         ),
+        'environment': EnvironmentalStats(
+            max_age=30,
+            min_temp=0.0
+        ),
         'pack_bonus': 0,
         'preferred_prey': ['caribou'],  # Opportunistic
         'reproduction_threshold': 12,
         'offspring_count': 4
+    },
+    'red_fox': {
+        'stats': CombatStats(
+            max_hp=22, current_hp=22,
+            attack=9,
+            defense=3,
+            speed=9,
+            evasion=25,
+            accuracy=80
+        ),
+        'movement': MovementStats(
+            movement_range=3,
+            terrain_preferences={
+                5: 1.0, 7: 1.0, 4: 0.8  # Grassland, Forest, Savanna
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=30
+        ),
+        'pack_bonus': 0,
+        'preferred_prey': ['rabbit', 'deer'],  # Hunts small prey
+        'reproduction_threshold': 14,
+        'offspring_count': 3
+    },
+    'boar': {
+        'stats': CombatStats(
+            max_hp=45, current_hp=45,
+            attack=14,
+            defense=6,
+            speed=6,
+            evasion=5,
+            accuracy=75
+        ),
+        'movement': MovementStats(
+            movement_range=2,
+            terrain_preferences={
+                7: 1.0, 6: 1.0, 4: 0.8  # Forest, Rainforest, Savanna
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=80
+        ),
+        'pack_bonus': 0,
+        'preferred_prey': ['deer'],  # Opportunistic
+        'can_eat_vegetation': True,  # Omnivore
+        'vegetation_heal': 8,
+        'reproduction_threshold': 30,
+        'offspring_count': 4
+    },
+    'jackal': {
+        'stats': CombatStats(
+            max_hp=25, current_hp=25,
+            attack=10,
+            defense=3,
+            speed=9,
+            evasion=20,
+            accuracy=80
+        ),
+        'movement': MovementStats(
+            movement_range=4,
+            terrain_preferences={
+                3: 1.0, 4: 1.0  # Desert, Savanna
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=40,
+            min_temp=0.4
+        ),
+        'pack_bonus': 2,  # Small packs
+        'preferred_prey': ['gazelle', 'rabbit'],
+        'reproduction_threshold': 15,
+        'offspring_count': 3
+    },
+    'crocodile': {
+        'stats': CombatStats(
+            max_hp=70, current_hp=70,
+            attack=25,
+            defense=10,
+            speed=4,
+            evasion=5,
+            accuracy=85
+        ),
+        'movement': MovementStats(
+            movement_range=2,
+            terrain_preferences={
+                6: 1.0, 4: 0.8, 2: 0.8 # Rainforest, Savanna (rivers), Beach
+            },
+            can_swim=True
+        ),
+        'environment': EnvironmentalStats(
+            max_age=200, # Long lived
+            cold_blooded=True,
+            min_temp=0.5
+        ),
+        'pack_bonus': 0,
+        'ambush_bonus': 10,
+        'preferred_prey': ['gazelle', 'bison', 'deer'],
+        'reproduction_threshold': 40,
+        'offspring_count': 10
+    },
+    'snake': {
+        'stats': CombatStats(
+            max_hp=20, current_hp=20,
+            attack=15, # Venomous/Strong bite
+            defense=2,
+            speed=6,
+            evasion=30,
+            accuracy=90
+        ),
+        'movement': MovementStats(
+            movement_range=2,
+            terrain_preferences={
+                6: 1.0, 3: 1.0, 4: 1.0, 7: 0.8
+            }
+        ),
+        'environment': EnvironmentalStats(
+            max_age=40,
+            cold_blooded=True,
+            min_temp=0.5
+        ),
+        'pack_bonus': 0,
+        'ambush_bonus': 8,
+        'preferred_prey': ['rabbit', 'frog'],
+        'reproduction_threshold': 12,
+        'offspring_count': 5
+    },
+    'giant_toad': {
+        'stats': CombatStats(
+            max_hp=15, current_hp=15,
+            attack=5,
+            defense=2,
+            speed=4,
+            evasion=10,
+            accuracy=80
+        ),
+        'movement': MovementStats(
+            movement_range=2,
+            terrain_preferences={
+                6: 1.0, 7: 0.8
+            },
+            can_swim=True
+        ),
+        'environment': EnvironmentalStats(
+            max_age=30,
+            cold_blooded=True,
+            min_temp=0.4
+        ),
+        'pack_bonus': 0,
+        'preferred_prey': ['frog', 'rabbit'], # Eats smaller things
+        'reproduction_threshold': 10,
+        'offspring_count': 8
     }
 }
 
