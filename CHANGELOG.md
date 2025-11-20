@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-11-20
+### Added
+- `game_ui.py`: Pygame-based graphical user interface.
+- Main Menu: Options for New World, Load Game, and Quit.
+- World Config Screen: Sliders to customize world generation parameters.
+- Game View: Interactive map with pan/zoom, play/pause controls, and real-time statistics.
+- Visualization: Biome coloring, animal rendering, and event tracking.
+
 ## [0.7.0] - 2025-11-20
 ### Added
 - `game_controller.py`: Central game state management, world generation configuration, and turn execution.
