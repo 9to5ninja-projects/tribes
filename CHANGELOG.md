@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-11-20
+### Added
+- `game_controller.py`: Central game state management, world generation configuration, and turn execution.
+- `resource_definitions.py`: Data layer for resources, biome yields, and animal yields.
+- Save/Load system: JSON-based persistence for complete game state.
+- Statistics tracking: Tracks turns, births, deaths, and extinctions.
+
 ## [0.6.0] - 2024-03-21
 ### Added
 - `events_ecology.py`: Added scavengers, avian creatures, and aquatic life.
