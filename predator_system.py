@@ -297,18 +297,41 @@ class PredatorSystem:
             (1, -1),  (1, 0),  (1, 1)
         ]
         
+        # Check current biome suitability
+        current_biome = self.world.biomes[predator.y, predator.x]
+        current_temp = self.world.temperature[predator.y, predator.x]
+        
+        biome_suitable = current_biome in species_data.preferred_biomes
+        temp_suitable = species_data.temp_range[0] <= current_temp <= species_data.temp_range[1]
+        
+        # If in bad habitat, prioritize moving to good habitat unless starving
+        seeking_habitat = (not biome_suitable or not temp_suitable) and predator.energy > 0.3
+        
         for dx, dy in search_directions:
             nx = (predator.x + dx * 3) % self.width  # Look 3 cells ahead
             ny = (predator.y + dy * 3) % self.height
             
+            # Check prey
             prey_count = self._count_nearby_prey(nx, ny, species_data.hunting_range)
             
-            if prey_count > best_prey_count:
-                best_prey_count = prey_count
+            # Check habitat at destination
+            dest_biome = self.world.biomes[ny, nx]
+            dest_temp = self.world.temperature[ny, nx]
+            dest_suitable = (dest_biome in species_data.preferred_biomes and 
+                           species_data.temp_range[0] <= dest_temp <= species_data.temp_range[1])
+            
+            score = prey_count
+            if seeking_habitat and dest_suitable:
+                score += 2  # Bonus for finding good habitat
+            elif not dest_suitable:
+                score -= 1  # Penalty for bad habitat
+            
+            if score > best_prey_count:
+                best_prey_count = score
                 best_dx, best_dy = dx, dy
         
-        # Move if prey found, or wander randomly if starving
-        if best_prey_count > 0:
+        # Move if target found
+        if best_dx != 0 or best_dy != 0:
             predator.move(best_dx, best_dy, self.width, self.height)
             predator.consume_energy(0.03)  # Movement cost
         elif predator.energy < 0.3:  # Desperately searching

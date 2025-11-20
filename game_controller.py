@@ -8,6 +8,7 @@ from vegetation_system import VegetationSystem
 from animal_system import AnimalSystem
 from predator_system import PredatorSystem
 from events_ecology import EventsEcologySystem
+from balance_config import apply_balance_to_game, SPAWN_CONFIG
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -129,42 +130,56 @@ class GameState:
             self.vegetation.density *= self.config.vegetation_density_multiplier
             self.vegetation.density = np.clip(self.vegetation.density, 0, 1)
         
-        # Establish vegetation for a few years
-        print("\nEstablishing ecosystem (5 years)...")
-        for _ in range(20):
+        # Establish vegetation (longer period)
+        print(f"\nEstablishing ecosystem ({SPAWN_CONFIG['vegetation_establishment_years']} years)...")
+        for _ in range(SPAWN_CONFIG['vegetation_establishment_years'] * 4):
             self.climate.advance_turn()
             self.vegetation.update(self.climate)
         
+        # Initialize animal systems (but don't spawn yet)
+        self.animals = AnimalSystem(self.world, self.vegetation)
+        self.predators = PredatorSystem(self.world, self.vegetation, self.animals)
+        self.ecology = EventsEcologySystem(self.world, self.vegetation, self.animals, self.predators)
+
+        # Apply balance configurations
+        print("\nApplying ecosystem balance...")
+        apply_balance_to_game(self)
+        
         # Spawn animals
         print("\nSpawning wildlife...")
-        self.animals = AnimalSystem(self.world, self.vegetation)
         self.animals.spawn_initial_populations(
             population_per_species=self.config.herbivore_population
         )
         
-        # Let herbivores establish
-        print("Herbivores establishing (3 years)...")
-        for _ in range(12):
+        # Let herbivores establish (longer period)
+        print(f"Herbivores establishing ({SPAWN_CONFIG['herbivore_establishment_years']} years)...")
+        for _ in range(SPAWN_CONFIG['herbivore_establishment_years'] * 4):
             self.climate.advance_turn()
             self.vegetation.update(self.climate)
             self.animals.update(self.climate)
         
-        # Spawn predators
-        print("\nSpawning predators...")
-        self.predators = PredatorSystem(self.world, self.vegetation, self.animals)
+        # Check herbivore survival before spawning predators
+        herbivore_count = len(self.animals.herbivores)
+        print(f"Herbivore population check: {herbivore_count}")
+        
+        if herbivore_count < self.config.herbivore_population * 0.3:
+            print("⚠️  WARNING: Low herbivore survival. Ecosystem may be unstable.")
+        
+        # Spawn predators (with delay)
+        print(f"\nSpawning predators (after {SPAWN_CONFIG['predator_delay_years']} year delay)...")
         self.predators.spawn_initial_populations(
             population_per_species=self.config.predator_population
         )
         
         # Stabilize predator-prey
-        print("Ecosystem stabilizing (2 years)...")
-        for _ in range(8):
+        print(f"Ecosystem stabilizing ({SPAWN_CONFIG['predator_delay_years']} years)...")
+        for _ in range(SPAWN_CONFIG['predator_delay_years'] * 4):
             self.climate.advance_turn()
             self.vegetation.update(self.climate)
             self.animals.update(self.climate)
             self.predators.update(self.climate)
         
-        # Add full ecology
+        # Add full ecology populations
         print("\nInitializing complete ecology...")
         self.ecology = EventsEcologySystem(
             self.world, self.vegetation, self.animals, self.predators

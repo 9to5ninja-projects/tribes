@@ -211,13 +211,20 @@ class AnimalSystem:
         # Decide to move
         move_chance = species_data.migration_tendency * (1.0 - habitat_quality)
         
+        # Always move if starving or in bad habitat
+        if animal.energy < 0.4 or habitat_quality < 0.3:
+            move_chance = 1.0
+        
         if np.random.random() < move_chance:
-            # Look for better location nearby
+            # Look for better location nearby (increased radius)
             best_score = habitat_quality
             best_dx, best_dy = 0, 0
             
-            for dx in [-1, 0, 1]:
-                for dy in [-1, 0, 1]:
+            # Scan radius 2 for better pathfinding
+            scan_radius = 2
+            
+            for dy in range(-scan_radius, scan_radius + 1):
+                for dx in range(-scan_radius, scan_radius + 1):
                     if dx == 0 and dy == 0:
                         continue
                     
@@ -231,11 +238,21 @@ class AnimalSystem:
                     n_biome_match = 1.0 if neighbor_biome in species_data.preferred_biomes else 0.3
                     n_temp_comfort = 1.0 if species_data.temp_range[0] <= neighbor_temp <= species_data.temp_range[1] else 0.5
                     
-                    neighbor_quality = n_biome_match * n_temp_comfort * (0.5 + 0.5 * neighbor_food)
+                    # Distance penalty (prefer closer good spots)
+                    dist = np.sqrt(dx*dx + dy*dy)
+                    dist_penalty = 1.0 / (1.0 + dist * 0.5)
+                    
+                    # Herd attraction (simplified)
+                    herd_bonus = 1.0
+                    # (In a full implementation, we'd check for nearby kin)
+                    
+                    neighbor_quality = n_biome_match * n_temp_comfort * (0.5 + 0.5 * neighbor_food) * dist_penalty
                     
                     if neighbor_quality > best_score:
                         best_score = neighbor_quality
-                        best_dx, best_dy = dx, dy
+                        # Move one step towards the best spot
+                        best_dx = int(np.sign(dx)) if abs(dx) > 0 else 0
+                        best_dy = int(np.sign(dy)) if abs(dy) > 0 else 0
             
             # Move to best location (or stay if current is best)
             if best_dx != 0 or best_dy != 0:

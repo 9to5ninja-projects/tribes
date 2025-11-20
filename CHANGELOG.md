@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-11-20
+### Added
+- `srpg_stats.py`: Foundation for deterministic stat-based entity system (HP, ATK, DEF, SPD).
+- `srpg_combat.py`: Combat resolution logic for entity interactions and environmental hazards.
+- `balance_config.py`: Centralized configuration for ecosystem tuning (metabolism, growth rates, spawn delays).
+
+### Changed
+- `game_controller.py`: Integrated balance configuration and improved initialization sequence.
+- `animal_system.py`: Improved movement logic with better pathfinding and habitat sensing.
+- `predator_system.py`: Enhanced predator AI to prioritize habitat quality when not hunting.
+- `game_ui.py`: Fixed color rendering for scavengers, avian, and aquatic creatures.
+- Ecosystem Balance:
+  - Reduced predator hunt success and metabolism.
+  - Increased vegetation growth and herbivore efficiency.
+  - Added establishment phases for vegetation and herbivores before predators spawn.
+
 ## [0.8.0] - 2025-11-20
 ### Added
 - `game_ui.py`: Pygame-based graphical user interface.

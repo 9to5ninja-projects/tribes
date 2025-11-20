@@ -281,6 +281,18 @@ class GameView:
             color = (255, 255, 0)
             if 0 <= bird.x < world_width and 0 <= bird.y < world_height:
                 self.map_surface.set_at((bird.x, bird.y), color)
+
+        # Scavengers (brown dots)
+        for scavenger in self.game.ecology.scavengers:
+            color = (139, 69, 19)  # SaddleBrown
+            if 0 <= scavenger.x < world_width and 0 <= scavenger.y < world_height:
+                self.map_surface.set_at((scavenger.x, scavenger.y), color)
+
+        # Aquatic (cyan dots)
+        for aquatic in self.game.ecology.aquatic_creatures:
+            color = (0, 255, 255)  # Cyan
+            if 0 <= aquatic.x < world_width and 0 <= aquatic.y < world_height:
+                self.map_surface.set_at((aquatic.x, aquatic.y), color)
     
     def handle_events(self, events):
         for event in events:
