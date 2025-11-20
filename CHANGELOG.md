@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-11-20
+### Added
+- Predator system (`predator_system.py`)
+  - Carnivore species (Wolf, Lion, Bear, Leopard, Arctic Fox)
+  - Hunting mechanics with success rates and pack bonuses
+  - Top-down population control and predator-prey dynamics
+  - Omnivore behavior for Bears (fallback to vegetation)
+
 ## [0.4.0] - 2025-11-20
 ### Added
 - Animal system (`animal_system.py`)
