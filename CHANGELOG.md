@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-11-20
+### Added
+- Vegetation system (`vegetation_system.py`)
+  - Biome-specific growth rates and maximum densities
+  - Dynamic response to temperature, moisture, and seasons
+  - Logistic growth and seed dispersal mechanics
+  - Impact of weather events (storms and droughts) on vegetation
+
 ## [0.2.0] - 2025-11-20
 ### Added
 - Climate engine (`climate_engine.py`)
