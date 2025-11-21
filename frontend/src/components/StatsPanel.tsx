@@ -78,10 +78,12 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                     });
                 }
             });
+        } else {
+            console.warn("entities.predators is undefined or empty", entities);
         }
         
         if (targets.length === 0) {
-            console.log("No targets found in range.");
+            console.log("No targets found in range. Unit:", selectedUnit);
             if (onLog) {
                 onLog("No animals in range!");
             } else {

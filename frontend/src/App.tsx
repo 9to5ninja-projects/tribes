@@ -328,8 +328,12 @@ function App() {
         } else {
             addLog(`Unit moved to (${x}, ${y})`, 'success');
             // Refresh tribe data to show new position
-            const tData = await gameAPI.getTribe();
+            const [tData, eData] = await Promise.all([
+                gameAPI.getTribe(),
+                gameAPI.getEntities()
+            ]);
             setTribeData(tData);
+            setEntities(eData);
             
             // Check if unit can still act
             const updatedUnit = tData.units.find((u: Unit) => u.id === unitId);
