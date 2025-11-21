@@ -2,7 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.16.0] - 2025-11-21
+### Added
+- **Starting Tribe Configuration**: Added options in the New Game dialog to customize the number of starting Gatherers and Hunters.
+- **Hunt Target Info**: Hunter target selection dialog now displays the HP and Max HP of potential targets.
+
+### Fixed
+- **Gather Action**: Fixed an issue where the "Gather" button would not work despite being on a resource tile. Removed unnecessary confirmation dialog for single-resource gathering.
+- **Hunt Messaging**: Improved game log messages for hunting actions. Now explicitly states the target's name and remaining HP if the attack was not fatal.
+- **Crash Fixes**: Resolved "White Screen of Death" caused by missing component references (`NewGameDialog`, `SaveLoadDialog`) and TypeScript errors in `App.tsx`.
+
+## [0.15.0] - 2025-11-21
+### Added
+- **Radial Fog of War**: Changed visibility reveal from square to radial for more realistic exploration.
+- **Movement Confirmation**: Added a confirmation dialog when moving units to prevent accidental moves.
+- **Hunting Target Selection**: Added a dialog to select specific targets when multiple animals are in range.
+
+### Fixed
+- **White Screen Crash**: Fixed a TypeScript error in `App.tsx` related to `LogEntry` type mismatch.
+- **Hunting Logic**: Fixed an issue where hunters could not target specific animals due to ID mismatch between frontend (string) and backend (UUID).
+- **Entity Removal**: Fixed a bug where killed animals remained on the map until the next turn. They are now removed immediately.
+- **Movement Selection**: Fixed an issue where selecting a unit on an occupied tile would trigger a "Unit has already moved" error.
+
+### Changed
+- **Backend**: Updated `game_server.py` to return Entity IDs in `get_entities` response.
+- **Frontend**: Updated `StatsPanel.tsx` to handle target selection and display debug logs for hunting actions.
+
+## [0.14.0] - 2025-11-21
+### Added
+- **Unit Movement Confirmation**: Added a confirmation dialog when moving units to prevent accidental moves.
+- **Targeted Hunting**: Hunters can now target specific animals via the Tile Inspector UI.
+- **Safety Checks**: Added robust frontend error handling to prevent crashes when loading partial game states.
+
+### Changed
+- **Role Enforcement**: Hunters can no longer gather resources (Wood, Stone, etc.), enforcing class specialization.
+- **Bug Fixes**: Resolved `TypeError: Cannot read properties of undefined` crash in StatsPanel and WorldCanvas.
+
+## [0.13.0] - 2025-11-21
+### Added
+- **Tribe System Expansion**:
+  - **New Unit Class: Crafter**:
+    - Specialized unit for advanced construction and research.
+    - Recruited at Bonfires (Cost: 50 Food).
+  - **New Structures**:
+    - **Bonfire**: Restores energy to nearby units (Built by Gatherers & Crafters).
+    - **Hut**: Reduces tribe food consumption by 3 per year (Built by Crafters).
+    - **Research Stations**:
+      - **Weapon/Tools Research**: Generates Weapon Tech points (Built by Crafters).
+      - **Clothing/Armor Research**: Generates Armor Tech points (Built by Crafters).
+    - **Idols**: Unlocks Shaman class and generates Culture points (Built by Crafters).
+- **Gameplay Mechanics**:
+  - **Energy System**: Units consume energy to move/act. Bonfires restore energy.
+  - **Food Consumption**: Tribe consumes 1 food per unit per year. Starvation causes damage.
+  - **Targeted Hunting**: Hunters can now target specific animals.
+  - **Build Mode**: UI for placing structures on adjacent tiles.
+- **UI/UX Overhaul**:
+  - **Loading Screen**: Visual progress bar during world generation.
+  - **Tribe Details**: Dedicated dialog for detailed stockpile and unit management.
+  - **Stats Panel**: Context-aware actions (Build, Recruit, Hunt, Gather).
 
 ## [0.12.0] - 2025-11-20
 ### Added

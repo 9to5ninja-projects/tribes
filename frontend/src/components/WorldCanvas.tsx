@@ -1,10 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
-import type { WorldData, EntityList } from '../gameAPI';
-import { Typography, Paper } from '@mui/material';
+import type { WorldData, EntityList, TribeData } from '../gameAPI';
+import { Typography, Paper, Box, IconButton } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 
 interface WorldCanvasProps {
     worldData: WorldData | null;
     entities: EntityList | null;
+    tribeData: TribeData | null;
+    selectedUnitId: string | null;
     onTileClick: (x: number, y: number) => void;
 }
 
@@ -23,56 +27,270 @@ const BIOME_COLORS: Record<number, string> = {
     11: '#546e7a', // Mountain
 };
 
-const TILE_SIZE = 8;
+// Viewport settings
+const VIEWPORT_SIZES = [16, 24, 32, 48, 64, 96, 128]; // Tiles visible
+const CANVAS_SIZE_PX = 600; // Fixed canvas size in pixels
 
-export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, onTileClick }) => {
+export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, tribeData, selectedUnitId, onTileClick }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [hoverPos, setHoverPos] = useState<{x: number, y: number} | null>(null);
+    const [zoomIndex, setZoomIndex] = useState(2); // Default to 32x32
+    const [viewCenter, setViewCenter] = useState<{x: number, y: number} | null>(null);
+
+    const viewportTiles = VIEWPORT_SIZES[zoomIndex];
+    const tileSize = CANVAS_SIZE_PX / viewportTiles;
+
+    // Center view on selected unit or first unit
+    useEffect(() => {
+        if (selectedUnitId && tribeData && tribeData.units) {
+            const unit = tribeData.units.find(u => u.id === selectedUnitId);
+            if (unit) {
+                setViewCenter({ x: unit.x, y: unit.y });
+            }
+        } else if (!viewCenter && tribeData && tribeData.units && tribeData.units.length > 0) {
+            // Initial center
+            setViewCenter({ x: tribeData.units[0].x, y: tribeData.units[0].y });
+        }
+    }, [selectedUnitId, tribeData]);
 
     useEffect(() => {
-        if (!worldData || !canvasRef.current) {
-            console.log("WorldCanvas: Missing data or ref", { worldData, ref: canvasRef.current });
+        if (!worldData || !canvasRef.current || !viewCenter) {
             return;
         }
 
-        console.log("WorldCanvas: Drawing frame", { width: worldData.width, height: worldData.height });
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // Calculate viewport bounds
+        const halfView = Math.floor(viewportTiles / 2);
+        const startX = Math.max(0, Math.min(worldData.width - viewportTiles, viewCenter.x - halfView));
+        const startY = Math.max(0, Math.min(worldData.height - viewportTiles, viewCenter.y - halfView));
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
         // Draw terrain
-        for (let y = 0; y < worldData.height; y++) {
-            for (let x = 0; x < worldData.width; x++) {
-                const biome = worldData.biomes[y][x];
-                const veg = worldData.vegetation[y][x];
+        for (let vy = 0; vy < viewportTiles; vy++) {
+            for (let vx = 0; vx < viewportTiles; vx++) {
+                const worldX = startX + vx;
+                const worldY = startY + vy;
+
+                if (worldX >= worldData.width || worldY >= worldData.height) continue;
+
+                // Check Fog of War
+                const isRevealed = tribeData?.fog_map && tribeData.fog_map[worldY] ? tribeData.fog_map[worldY][worldX] : true;
+                
+                const drawX = vx * tileSize;
+                const drawY = vy * tileSize;
+
+                if (!isRevealed) {
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(drawX, drawY, tileSize, tileSize);
+                    continue; 
+                }
+
+                const biome = worldData.biomes[worldY][worldX];
+                const veg = worldData.vegetation[worldY][worldX];
                 
                 ctx.fillStyle = BIOME_COLORS[biome] || '#000000';
-                ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.fillRect(drawX, drawY, tileSize, tileSize);
 
                 // Overlay vegetation
                 if (veg > 0.1 && biome !== 0 && biome !== 1 && biome !== 10 && biome !== 11) {
                     ctx.fillStyle = `rgba(0, 100, 0, ${veg * 0.3})`;
-                    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    ctx.fillRect(drawX, drawY, tileSize, tileSize);
                 }
+                
+                // Grid lines (subtle)
+                ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(drawX, drawY, tileSize, tileSize);
             }
         }
+
+        // Helper to check if entity is in viewport
+        const isInView = (x: number, y: number) => {
+            return x >= startX && x < startX + viewportTiles && 
+                   y >= startY && y < startY + viewportTiles;
+        };
+
+        const toScreen = (x: number, y: number) => {
+            return {
+                x: (x - startX) * tileSize,
+                y: (y - startY) * tileSize
+            };
+        };
 
         // Draw entities
         if (entities) {
             // Herbivores (Green/Brown circles)
-            ctx.fillStyle = '#795548';
-            entities.herbivores.forEach(e => {
-                ctx.beginPath();
-                ctx.arc(e.x * TILE_SIZE + TILE_SIZE/2, e.y * TILE_SIZE + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
-                ctx.fill();
-            });
+            if (entities.herbivores) {
+                ctx.fillStyle = '#795548';
+                entities.herbivores.forEach(e => {
+                    if (!isInView(e.x, e.y)) return;
+                    const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
+                    if (!isRevealed) return;
+
+                    const pos = toScreen(e.x, e.y);
+                    ctx.beginPath();
+                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
 
             // Predators (Red circles)
-            ctx.fillStyle = '#d32f2f';
-            entities.predators.forEach(e => {
+            if (entities.predators) {
+                ctx.fillStyle = '#d32f2f';
+                entities.predators.forEach(e => {
+                    if (!isInView(e.x, e.y)) return;
+                    const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
+                    if (!isRevealed) return;
+
+                    const pos = toScreen(e.x, e.y);
+                    ctx.beginPath();
+                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+        }
+
+        // Draw Structures
+        if (tribeData && tribeData.structures) {
+            tribeData.structures.forEach(structure => {
+                if (!isInView(structure.x, structure.y)) return;
+                const isRevealed = tribeData?.fog_map && tribeData.fog_map[structure.y] ? tribeData.fog_map[structure.y][structure.x] : true;
+                if (!isRevealed) return;
+
+                const pos = toScreen(structure.x, structure.y);
+                
+                // Check if structure is under construction
+                const isUnderConstruction = !(structure as any).is_complete;
+                
+                if (isUnderConstruction) {
+                    // Draw scaffolding / construction site
+                    ctx.fillStyle = 'rgba(139, 69, 19, 0.5)'; // Transparent brown
+                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
+                    
+                    // Draw progress bar
+                    const progress = 1 - ((structure as any).construction_turns_left / (structure as any).max_construction_turns);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize*0.8, tileSize/2, tileSize/10);
+                    ctx.fillStyle = '#00e676'; // Green
+                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize*0.8, (tileSize/2) * progress, tileSize/10);
+                    
+                    return; // Skip drawing the full structure
+                }
+                
+                // Draw Bonfire (Orange Square)
+                if (structure.type === 'bonfire') {
+                    ctx.fillStyle = '#ff6d00';
+                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
+                    
+                    // Flicker effect
+                    if (Math.random() > 0.5) {
+                        ctx.fillStyle = '#ffab40';
+                        ctx.fillRect(pos.x + tileSize/3, pos.y + tileSize/3, tileSize/3, tileSize/3);
+                    }
+                } else if (structure.type === 'hut') {
+                    ctx.fillStyle = '#8d6e63'; // Brown
+                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
+                    // Roof
+                    ctx.fillStyle = '#5d4037';
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x + tileSize/4, pos.y + tileSize/4);
+                    ctx.lineTo(pos.x + tileSize/2, pos.y + tileSize/8);
+                    ctx.lineTo(pos.x + tileSize*0.75, pos.y + tileSize/4);
+                    ctx.fill();
+                } else if (structure.type === 'research_weapon') {
+                    ctx.fillStyle = '#607d8b'; // Blue Grey
+                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
+                    ctx.fillStyle = '#d32f2f'; // Red mark
+                    ctx.fillRect(pos.x + tileSize/2 - tileSize/8, pos.y + tileSize/2 - tileSize/8, tileSize/4, tileSize/4);
+                } else if (structure.type === 'research_armor') {
+                    ctx.fillStyle = '#607d8b'; // Blue Grey
+                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
+                    ctx.fillStyle = '#1976d2'; // Blue mark
+                    ctx.fillRect(pos.x + tileSize/2 - tileSize/8, pos.y + tileSize/2 - tileSize/8, tileSize/4, tileSize/4);
+                } else if (structure.type === 'idol') {
+                    ctx.fillStyle = '#ffd700'; // Gold
+                    ctx.beginPath();
+                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Draw Tribe Units
+        if (tribeData && tribeData.units) {
+            tribeData.units.forEach(unit => {
+                if (!isInView(unit.x, unit.y)) return;
+                
+                const pos = toScreen(unit.x, unit.y);
+                
+                // Selection highlight
+                if (unit.id === selectedUnitId) {
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Draw movement range (Diamond shape) - Only if hasn't moved
+                    if (!unit.has_moved) {
+                        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+                        ctx.lineWidth = 2;
+                        const range = unit.movement_range || 2;
+                        
+                        ctx.fillStyle = 'rgba(255, 255, 0, 0.1)';
+                        for (let dy = -range; dy <= range; dy++) {
+                            for (let dx = -range; dx <= range; dx++) {
+                                if (Math.abs(dx) + Math.abs(dy) <= range) {
+                                    const tx = unit.x + dx;
+                                    const ty = unit.y + dy;
+                                    if (isInView(tx, ty)) {
+                                        const tPos = toScreen(tx, ty);
+                                        ctx.fillRect(tPos.x, tPos.y, tileSize, tileSize);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Draw Attack Range (Red) - Only if hasn't acted and is Hunter
+                    if (!unit.has_acted && unit.type === 'hunter') {
+                        const attackRange = 2;
+                        ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; // Red tint
+                        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+                        
+                        for (let dy = -attackRange; dy <= attackRange; dy++) {
+                            for (let dx = -attackRange; dx <= attackRange; dx++) {
+                                if (Math.abs(dx) + Math.abs(dy) <= attackRange) {
+                                    const tx = unit.x + dx;
+                                    const ty = unit.y + dy;
+                                    // Don't draw over the unit itself
+                                    if (tx === unit.x && ty === unit.y) continue;
+                                    
+                                    if (isInView(tx, ty)) {
+                                        const tPos = toScreen(tx, ty);
+                                        ctx.fillRect(tPos.x, tPos.y, tileSize, tileSize);
+                                        ctx.strokeRect(tPos.x, tPos.y, tileSize, tileSize);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Unit body
+                ctx.fillStyle = '#00bcd4'; // Cyan for player units
                 ctx.beginPath();
-                ctx.arc(e.x * TILE_SIZE + TILE_SIZE/2, e.y * TILE_SIZE + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
+                ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/2.5, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Border
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
             });
         }
 
@@ -80,37 +298,97 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, o
         if (hoverPos) {
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 1;
-            ctx.strokeRect(hoverPos.x * TILE_SIZE, hoverPos.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            ctx.strokeRect(hoverPos.x * tileSize, hoverPos.y * tileSize, tileSize, tileSize);
         }
 
-    }, [worldData, entities, hoverPos]);
+    }, [worldData, entities, tribeData, selectedUnitId, hoverPos, zoomIndex, viewCenter]);
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current || !viewCenter || !worldData) return;
+        
         const rect = canvasRef.current.getBoundingClientRect();
-        const x = Math.floor((e.clientX - rect.left) / TILE_SIZE);
-        const y = Math.floor((e.clientY - rect.top) / TILE_SIZE);
-        setHoverPos({x, y});
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const vx = Math.floor(mouseX / tileSize);
+        const vy = Math.floor(mouseY / tileSize);
+        
+        setHoverPos({x: vx, y: vy});
     };
 
     const handleClick = () => {
-        if (hoverPos) {
-            onTileClick(hoverPos.x, hoverPos.y);
+        if (hoverPos && viewCenter && worldData) {
+            const halfView = Math.floor(viewportTiles / 2);
+            const startX = Math.max(0, Math.min(worldData.width - viewportTiles, viewCenter.x - halfView));
+            const startY = Math.max(0, Math.min(worldData.height - viewportTiles, viewCenter.y - halfView));
+            
+            const worldX = startX + hoverPos.x;
+            const worldY = startY + hoverPos.y;
+            
+            onTileClick(worldX, worldY);
         }
     };
+    
+    // Pan controls
+    const pan = (dx: number, dy: number) => {
+        if (!viewCenter || !worldData) return;
+        setViewCenter({
+            x: Math.max(0, Math.min(worldData.width - 1, viewCenter.x + dx)),
+            y: Math.max(0, Math.min(worldData.height - 1, viewCenter.y + dy))
+        });
+    };
 
-    if (!worldData) return <Typography>No world data</Typography>;
+    if (!worldData || !worldData.biomes) return <Typography>No world data</Typography>;
 
     return (
-        <Paper elevation={3} sx={{ p: 1, display: 'inline-block', bgcolor: '#000' }}>
-            <canvas
-                ref={canvasRef}
-                width={worldData.width * TILE_SIZE}
-                height={worldData.height * TILE_SIZE}
-                onMouseMove={handleMouseMove}
-                onClick={handleClick}
-                style={{ cursor: 'crosshair', display: 'block' }}
-            />
-        </Paper>
+        <Box sx={{ position: 'relative', display: 'inline-block' }}>
+            <Paper elevation={3} sx={{ p: 1, bgcolor: '#000', overflow: 'hidden' }}>
+                <canvas
+                    ref={canvasRef}
+                    width={CANVAS_SIZE_PX}
+                    height={CANVAS_SIZE_PX}
+                    onMouseMove={handleMouseMove}
+                    onClick={handleClick}
+                    style={{ cursor: 'crosshair', display: 'block' }}
+                />
+            </Paper>
+            
+            {/* Zoom Controls */}
+            <Paper sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', gap: 1, p: 0.5, bgcolor: 'rgba(255,255,255,0.8)' }}>
+                <IconButton size="small" onClick={() => setZoomIndex(z => Math.max(z - 1, 0))}>
+                    <AddIcon />
+                </IconButton>
+                <Typography variant="caption" align="center">{viewportTiles}x{viewportTiles}</Typography>
+                <IconButton size="small" onClick={() => setZoomIndex(z => Math.min(z + 1, VIEWPORT_SIZES.length - 1))}>
+                    <RemoveIcon />
+                </IconButton>
+            </Paper>
+            
+            {/* Pan Hints */}
+            <Typography variant="caption" sx={{ position: 'absolute', bottom: 5, left: 5, color: 'rgba(255,255,255,0.5)' }}>
+                Click unit to center
+            </Typography>
+            
+            {/* Pan Controls */}
+            <Paper sx={{ position: 'absolute', bottom: 16, right: 16, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.5, p: 0.5, bgcolor: 'rgba(255,255,255,0.8)' }}>
+                <Box />
+                <IconButton size="small" onClick={() => pan(0, -5)}>
+                    <Typography variant="caption">▲</Typography>
+                </IconButton>
+                <Box />
+                <IconButton size="small" onClick={() => pan(-5, 0)}>
+                    <Typography variant="caption">◀</Typography>
+                </IconButton>
+                <Box />
+                <IconButton size="small" onClick={() => pan(5, 0)}>
+                    <Typography variant="caption">▶</Typography>
+                </IconButton>
+                <Box />
+                <IconButton size="small" onClick={() => pan(0, 5)}>
+                    <Typography variant="caption">▼</Typography>
+                </IconButton>
+                <Box />
+            </Paper>
+        </Box>
     );
 };

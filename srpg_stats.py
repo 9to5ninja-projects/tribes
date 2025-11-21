@@ -370,7 +370,6 @@ PREDATOR_STATS = {
             terrain_preferences={
                 10: 1.0, # Snow
                 9: 1.0,  # Tundra
-                2: 0.8   # Beach (hunting seals/fish)
             },
             can_swim=True
         ),

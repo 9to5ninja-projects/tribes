@@ -3,10 +3,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from srpg_stats import create_stats_from_template, HERBIVORE_STATS
 from srpg_combat import CombatResolver
+import uuid
 
 class Animal:
     """Base class for all animal species"""
     def __init__(self, x, y, species_name):
+        self.id = str(uuid.uuid4())
         self.x = x
         self.y = y
         self.species = species_name
@@ -110,7 +112,7 @@ class AnimalSystem:
             
             print(f"  🦌 Spawned {spawned} {species_name}")
     
-    def update(self, climate_engine, predators_list=None):
+    def update(self, climate_engine, predators_list=None, tribe_units=None):
         """Update all animal behaviors for one turn"""
         # Build spatial map for fast neighbor lookups
         # Key: (x, y), Value: list of animals
@@ -129,6 +131,14 @@ class AnimalSystem:
                 if pos not in predator_map:
                     predator_map[pos] = []
                 predator_map[pos].append(p)
+        
+        # Add tribe units to predator map (as threats)
+        if tribe_units:
+            for u in tribe_units:
+                pos = (u.x, u.y)
+                if pos not in predator_map:
+                    predator_map[pos] = []
+                predator_map[pos].append(u)
 
         # Age and metabolism
         for animal in self.herbivores:

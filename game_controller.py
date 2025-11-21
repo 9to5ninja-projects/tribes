@@ -9,6 +9,7 @@ from animal_system import AnimalSystem
 from predator_system import PredatorSystem
 from events_ecology import EventsEcologySystem
 from balance_config import apply_balance_to_game, SPAWN_CONFIG
+from tribe_system import Tribe, Unit, UnitType, StructureType
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -90,6 +91,8 @@ class GameState:
         self.animals = None
         self.predators = None
         self.ecology = None
+        self.tribe = None  # The player's tribe
+        self.resource_map = {} # (x,y) -> {resource_type: amount}
         
         # Game state
         self.turn = 0
@@ -107,7 +110,7 @@ class GameState:
             'food_chain': {}       # Aggregated predation stats: {predator: {prey: count}}
         }
     
-    def initialize_world(self):
+    def initialize_world(self, starting_units=None, preferred_biome=None):
         """Generate new world from config"""
         print("=== WORLD GENERATION ===")
         print(f"Dimensions: {self.config.width}x{self.config.height}")
@@ -200,10 +203,132 @@ class GameState:
         self.ecology.disease_spawn_rate = self.config.disease_frequency
         self.ecology.disaster_spawn_rate = self.config.disaster_frequency
         
+        # Generate Resources
+        self._generate_resources()
+
+        # Initialize Tribe
+        print("\nInitializing Tribe...")
+        self.tribe = Tribe(self.config.width, self.config.height)
+        
+        # Find a valid start location (land, preferably forest/grassland)
+        start_x, start_y = self._find_start_location(preferred_biome)
+        print(f"Tribe starting at {start_x}, {start_y}")
+        
+        # Spawn starting units
+        if starting_units:
+            print(f"Spawning custom units: {starting_units}")
+            for unit_type_str, count in starting_units.items():
+                try:
+                    # Ensure valid unit type
+                    u_type = UnitType(unit_type_str.lower())
+                    for _ in range(count):
+                        self.tribe.add_unit(Unit(start_x, start_y, u_type))
+                except ValueError:
+                    print(f"Warning: Invalid unit type '{unit_type_str}' requested.")
+        else:
+            self.tribe.add_unit(Unit(start_x, start_y, UnitType.GATHERER))
+            self.tribe.add_unit(Unit(start_x, start_y, UnitType.GATHERER))
+            self.tribe.add_unit(Unit(start_x, start_y, UnitType.HUNTER))
+        
         self.turn = 0
         print("\n=== WORLD READY ===")
         self.print_status()
     
+    def _find_start_location(self, preferred_biome=None):
+        """Find a suitable starting location for the tribe"""
+        # Try to find a spot with vegetation and not in ocean
+        attempts = 0
+        
+        # Map biome names to IDs if string provided
+        biome_map = {
+            "grassland": [5],
+            "forest": [7],
+            "rainforest": [6],
+            "savanna": [4],
+            "desert": [3],
+            "tundra": [9],
+            "snow": [10],
+            "beach": [2],
+            "mountain": [11]
+        }
+        
+        target_biomes = [4, 5, 6, 7] # Default: Savanna, Grassland, Rainforest, Temperate Forest
+        
+        if preferred_biome and preferred_biome.lower() in biome_map:
+            target_biomes = biome_map[preferred_biome.lower()]
+            print(f"Searching for start location in {preferred_biome}...")
+        
+        while attempts < 200:
+            x = np.random.randint(0, self.config.width)
+            y = np.random.randint(0, self.config.height)
+            
+            # Check if land (elevation > sea_level)
+            if self.world.elevation[y, x] > self.config.sea_level:
+                # Check biome
+                biome = self.world.biomes[y, x]
+                if biome in target_biomes:
+                    return x, y
+            attempts += 1
+            
+        # Fallback to default biomes if preferred not found
+        if preferred_biome:
+            print(f"Could not find {preferred_biome}, falling back to default biomes.")
+            return self._find_start_location(None)
+            
+        # Fallback to center
+        return self.config.width // 2, self.config.height // 2
+
+    def _generate_resources(self):
+        """Populate the world with resources based on terrain"""
+        print("Generating natural resources...")
+        self.resource_map = {}
+        
+        for y in range(self.config.height):
+            for x in range(self.config.width):
+                biome = self.world.biomes[y, x]
+                veg = self.vegetation.density[y, x]
+                
+                resources = {}
+                
+                # Wood/Fiber from vegetation (Forests/Grasslands)
+                if veg > 0.1:
+                    # Wood primarily in forests (biomes 6, 7, 8)
+                    if biome in [6, 7, 8]:
+                        resources['wood'] = int(veg * 200)
+                        resources['fiber'] = int(veg * 50)
+                        if np.random.random() < 0.05:
+                            resources['resin'] = np.random.randint(10, 30)
+                    # Fiber primarily in grasslands/savanna (biomes 4, 5)
+                    elif biome in [4, 5]:
+                        resources['fiber'] = int(veg * 100)
+                        if veg > 0.5:
+                            resources['wood'] = int(veg * 20) # Sparse trees
+                
+                # Stone/Clay/Ore from Mountains/Hills
+                if biome == 11: # Mountain
+                    resources['stone'] = np.random.randint(500, 1000)
+                    if np.random.random() < 0.15:
+                        resources['clay'] = np.random.randint(100, 300)
+                    if np.random.random() < 0.05:
+                        resources['copper_ore'] = np.random.randint(50, 150)
+                    if np.random.random() < 0.2:
+                        resources['flint'] = np.random.randint(20, 50)
+                
+                # Stone in Desert/Tundra
+                elif biome in [3, 9]:
+                    resources['stone'] = np.random.randint(100, 400)
+                    if np.random.random() < 0.1:
+                        resources['flint'] = np.random.randint(10, 30)
+                
+                # Clay near water (Beach/River banks)
+                if biome == 2: # Beach
+                    if np.random.random() < 0.2:
+                        resources['clay'] = np.random.randint(50, 150)
+                    resources['sand'] = 999
+                
+                if resources:
+                    self.resource_map[(x,y)] = resources
+
     def advance_turn(self):
         """Execute one turn of the simulation"""
         if not self.world:
@@ -215,10 +340,52 @@ class GameState:
         
         # Update all systems
         self.climate.advance_turn()
+        
+        # New Year - Food Consumption
+        if self.climate.season == 0 and self.tribe:
+            success, msg = self.tribe.consume_food()
+            self.add_event_log(msg)
+            if not success:
+                print(f"⚠️ {msg}")
+
         self.vegetation.update(self.climate)
-        self.animals.update(self.climate)
-        self.predators.update(self.climate)
+        
+        # Get tribe units for interaction
+        tribe_units = self.tribe.units if self.tribe else []
+        predators_list = self.predators.predators if self.predators else []
+        
+        self.animals.update(self.climate, predators_list=predators_list, tribe_units=tribe_units)
+        self.predators.update(self.climate, tribe_units=tribe_units)
         self.ecology.update(self.climate)
+        
+        # Cleanup dead units
+        if self.tribe:
+            dead_units = [u for u in self.tribe.units if u.hp <= 0]
+            for u in dead_units:
+                print(f"💀 Unit {u.name} has died!")
+                self.add_event_log(f"Unit {u.name} was killed.")
+            self.tribe.units = [u for u in self.tribe.units if u.hp > 0]
+        
+        # Update Tribe visibility
+        if self.tribe:
+            self.tribe.update_visibility()
+            
+            # Handle Structures (Bonfires)
+            # Bonfires consume 1 wood per turn and restore energy to nearby units
+            for structure in self.tribe.structures:
+                if structure.type == StructureType.BONFIRE:
+                    if self.tribe.stockpile.get("wood", 0) >= 1:
+                        self.tribe.stockpile["wood"] -= 1
+                        
+                        # Restore energy to units in range 5
+                        for unit in self.tribe.units:
+                            dist = abs(unit.x - structure.x) + abs(unit.y - structure.y)
+                            if dist <= 5:
+                                unit.energy = min(100, unit.energy + 10)
+
+            # Reset unit actions for next turn
+            for unit in self.tribe.units:
+                unit.reset_turn()
         
         # Track statistics
         self._update_statistics()
@@ -259,6 +426,18 @@ class GameState:
                 self.statistics['death_causes'][species][cause] = 0
             self.statistics['death_causes'][species][cause] += 1
             self.statistics['total_deaths'] += 1
+            
+        elif type == 'attack':
+            # Log attacks on units or by units
+            # actor = attacker species, target = target name, details = damage info
+            msg = f"{actor.capitalize()} attacked {target}! {details}"
+            self.add_event_log(msg)
+            print(f"⚔️ {msg}")
+            
+        elif type == 'kill':
+            msg = f"{actor.capitalize()} killed {target}!"
+            self.add_event_log(msg)
+            print(f"💀 {msg}")
 
     def add_event_log(self, message):
         """Add a message to the event log"""

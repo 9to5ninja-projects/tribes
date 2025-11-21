@@ -2,10 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from srpg_stats import create_stats_from_template, PREDATOR_STATS
 from srpg_combat import CombatResolver
+import uuid
 
 class Predator:
     """Carnivore that hunts herbivores"""
     def __init__(self, x, y, species_name):
+        self.id = str(uuid.uuid4())
         self.x = x
         self.y = y
         self.species = species_name
@@ -146,7 +148,7 @@ class PredatorSystem:
             
             print(f"  🐺 Spawned {spawned} {species_name}")
     
-    def update(self, climate_engine):
+    def update(self, climate_engine, tribe_units=None):
         """Update all predator behaviors"""
         kills_this_turn = {species: 0 for species in self.predator_species.keys()}
         
@@ -246,7 +248,7 @@ class PredatorSystem:
             
             # 2. Hunt (if able)
             if predator.can_hunt():
-                kill_made = self._attempt_hunt(predator, species_data)
+                kill_made = self._attempt_hunt(predator, species_data, tribe_units)
                 if kill_made:
                     kills_this_turn[predator.species] += 1
             
@@ -302,7 +304,7 @@ class PredatorSystem:
                     count += len(self.prey_map[(nx, ny)])
         return count
     
-    def _attempt_hunt(self, predator, species_data):
+    def _attempt_hunt(self, predator, species_data, tribe_units=None):
         """Predator tries to kill nearby prey using CombatResolver"""
         # Find prey in hunting range using spatial map
         # Reduced range because we now move BEFORE hunting
@@ -310,6 +312,7 @@ class PredatorSystem:
         
         potential_prey = []
         
+        # Check herbivores
         for dy in range(-hunting_range, hunting_range + 1):
             for dx in range(-hunting_range, hunting_range + 1):
                 nx = (predator.x + dx) % self.width
@@ -319,14 +322,29 @@ class PredatorSystem:
                     dist = np.sqrt(dx*dx + dy*dy)
                     if dist <= hunting_range:
                         for herbivore in self.prey_map[(nx, ny)]:
-                            potential_prey.append((herbivore, dist))
+                            potential_prey.append((herbivore, dist, 'herbivore'))
+
+        # Check tribe units
+        if tribe_units:
+            for unit in tribe_units:
+                # Simple distance check (ignoring wrap for now for units, or handle it?)
+                # Units are usually few, so iterating all is fine
+                dx = unit.x - predator.x
+                dy = unit.y - predator.y
+                # Handle wrapping for distance calculation
+                if abs(dx) > self.width / 2: dx -= np.sign(dx) * self.width
+                if abs(dy) > self.height / 2: dy -= np.sign(dy) * self.height
+                
+                dist = np.sqrt(dx*dx + dy*dy)
+                if dist <= hunting_range:
+                    potential_prey.append((unit, dist, 'unit'))
         
         if not potential_prey:
             return False
         
         # Choose closest prey
         potential_prey.sort(key=lambda x: x[1])
-        target_herbivore, dist = potential_prey[0]
+        target, dist, target_type = potential_prey[0]
         
         # Check for pack members nearby using spatial map
         pack_members = 0
@@ -342,34 +360,62 @@ class PredatorSystem:
                             if p.species == predator.species and p is not predator:
                                 pack_members += 1
         
-        # Resolve combat
-        kill, damage = self.combat_resolver.resolve_predator_hunt(
-            predator, target_herbivore,
-            species_data,
-            self.herbivores.herbivore_species[target_herbivore.species],
-            pack_members=pack_members
-        )
-        
-        if kill:
-            # Heal predator on kill (large meal)
-            heal_amount = int(predator.combat_stats.max_hp * 0.4)
-            predator.combat_stats.heal(heal_amount)
-            predator.hunt_cooldown = 2  # Rest after kill
+        if target_type == 'herbivore':
+            # Resolve combat with herbivore
+            kill, damage = self.combat_resolver.resolve_predator_hunt(
+                predator, target,
+                species_data,
+                self.herbivores.herbivore_species[target.species],
+                pack_members=pack_members
+            )
             
-            # Mark prey as killed by predation
-            target_herbivore.cause_of_death = 'predation'
-            
-            if self.logger_callback:
-                self.logger_callback('predation', predator.species, target_herbivore.species)
-            
-            return True
-        elif damage > 0:
-            # Small heal on hit (nibble?) or just exertion
-            predator.consume_energy(0.02) # Exertion
-            return False
-        else:
-            # Failed hunt
-            predator.consume_energy(0.05)  # Chase cost
+            if kill:
+                # Heal predator on kill (large meal)
+                heal_amount = int(predator.combat_stats.max_hp * 0.4)
+                predator.combat_stats.heal(heal_amount)
+                predator.hunt_cooldown = 2  # Rest after kill
+                
+                # Mark prey as killed by predation
+                target.cause_of_death = 'predation'
+                
+                if self.logger_callback:
+                    self.logger_callback('predation', predator.species, target.species)
+                
+                return True
+            elif damage > 0:
+                # Small heal on hit (nibble?) or just exertion
+                predator.consume_energy(0.02) # Exertion
+                return False
+            else:
+                # Failed hunt
+                predator.consume_energy(0.05)  # Chase cost
+                return False
+                
+        elif target_type == 'unit':
+            # Resolve combat with Unit
+            # Simple logic for now: 50% chance to hit, damage based on predator size
+            hit_chance = 0.6 + (pack_members * 0.1)
+            if np.random.random() < hit_chance:
+                damage = int(predator.combat_stats.attack * 0.5) # Units are tough?
+                target.hp -= damage
+                if self.logger_callback:
+                    self.logger_callback('attack', predator.species, target.name, f"Damage: {damage}")
+                
+                if target.hp <= 0:
+                    # Unit killed
+                    if self.logger_callback:
+                        self.logger_callback('kill', predator.species, target.name)
+                    
+                    # Heal predator
+                    heal_amount = int(predator.combat_stats.max_hp * 0.5)
+                    predator.combat_stats.heal(heal_amount)
+                    predator.hunt_cooldown = 3
+                    return True
+            else:
+                # Miss
+                if self.logger_callback:
+                    self.logger_callback('attack', predator.species, target.name, "Missed!")
+                predator.consume_energy(0.05)
             return False
     
     def _move_predator(self, predator, species_data, climate_engine):
