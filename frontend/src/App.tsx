@@ -257,8 +257,19 @@ function App() {
 
             // Check if moving to a new tile within range
             if ((dx !== 0 || dy !== 0) && dist <= range) {
-                setMoveConfirmation({x, y, unitId: selectedUnitId});
-                isMoveAction = true;
+                // Check if there is a target on the tile (for Hunters)
+                const hasTarget = entities?.predators?.some(p => p.x === x && p.y === y) || 
+                                  entities?.herbivores?.some(h => h.x === x && h.y === y);
+
+                // If it's a hunter and there's a target, don't prompt move immediately
+                // This allows clicking to inspect/hunt without the dialog blocking it
+                if (unit.type === 'hunter' && hasTarget) {
+                    console.log("Click on target with hunter - skipping move confirmation to allow inspection");
+                    addLog("Target selected. Use Hunt button to attack.", 'info');
+                } else {
+                    setMoveConfirmation({x, y, unitId: selectedUnitId});
+                    isMoveAction = true;
+                }
                 // Do not return here; allow fall-through to inspect the tile
                 // This allows the user to Cancel the move dialog and still see the tile info (e.g. to Hunt)
             }

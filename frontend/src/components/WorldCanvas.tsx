@@ -36,6 +36,9 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
     const [hoverPos, setHoverPos] = useState<{x: number, y: number} | null>(null);
     const [zoomIndex, setZoomIndex] = useState(2); // Default to 32x32
     const [viewCenter, setViewCenter] = useState<{x: number, y: number} | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef<{x: number, y: number} | null>(null);
+    const viewCenterStartRef = useRef<{x: number, y: number} | null>(null);
 
     const viewportTiles = VIEWPORT_SIZES[zoomIndex];
     const tileSize = CANVAS_SIZE_PX / viewportTiles;
@@ -303,6 +306,12 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
 
     }, [worldData, entities, tribeData, selectedUnitId, hoverPos, zoomIndex, viewCenter]);
 
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        dragStartRef.current = { x: e.clientX, y: e.clientY };
+        viewCenterStartRef.current = viewCenter;
+    };
+
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!canvasRef.current || !viewCenter || !worldData) return;
         
@@ -314,19 +323,52 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
         const vy = Math.floor(mouseY / tileSize);
         
         setHoverPos({x: vx, y: vy});
+
+        if (isDragging && dragStartRef.current && viewCenterStartRef.current) {
+            const dxPx = e.clientX - dragStartRef.current.x;
+            const dyPx = e.clientY - dragStartRef.current.y;
+            
+            const dxTiles = Math.round(dxPx / tileSize);
+            const dyTiles = Math.round(dyPx / tileSize);
+            
+            if (dxTiles !== 0 || dyTiles !== 0) {
+                 setViewCenter({
+                    x: Math.max(0, Math.min(worldData.width - 1, viewCenterStartRef.current.x - dxTiles)),
+                    y: Math.max(0, Math.min(worldData.height - 1, viewCenterStartRef.current.y - dyTiles))
+                });
+            }
+        }
     };
 
-    const handleClick = () => {
-        if (hoverPos && viewCenter && worldData) {
-            const halfView = Math.floor(viewportTiles / 2);
-            const startX = Math.max(0, Math.min(worldData.width - viewportTiles, viewCenter.x - halfView));
-            const startY = Math.max(0, Math.min(worldData.height - viewportTiles, viewCenter.y - halfView));
+    const handleMouseUp = (e: React.MouseEvent) => {
+        if (isDragging && dragStartRef.current) {
+            const dx = Math.abs(e.clientX - dragStartRef.current.x);
+            const dy = Math.abs(e.clientY - dragStartRef.current.y);
             
-            const worldX = startX + hoverPos.x;
-            const worldY = startY + hoverPos.y;
-            
-            onTileClick(worldX, worldY);
+            if (dx < 5 && dy < 5) {
+                // Click
+                if (hoverPos && viewCenter && worldData) {
+                    const halfView = Math.floor(viewportTiles / 2);
+                    const startX = Math.max(0, Math.min(worldData.width - viewportTiles, viewCenter.x - halfView));
+                    const startY = Math.max(0, Math.min(worldData.height - viewportTiles, viewCenter.y - halfView));
+                    
+                    const worldX = startX + hoverPos.x;
+                    const worldY = startY + hoverPos.y;
+                    
+                    onTileClick(worldX, worldY);
+                }
+            }
         }
+        setIsDragging(false);
+        dragStartRef.current = null;
+        viewCenterStartRef.current = null;
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+        dragStartRef.current = null;
+        viewCenterStartRef.current = null;
+        setHoverPos(null);
     };
     
     // Pan controls
@@ -347,9 +389,11 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                     ref={canvasRef}
                     width={CANVAS_SIZE_PX}
                     height={CANVAS_SIZE_PX}
+                    onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
-                    onClick={handleClick}
-                    style={{ cursor: 'crosshair', display: 'block' }}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                    style={{ cursor: isDragging ? 'grabbing' : 'crosshair', display: 'block' }}
                 />
             </Paper>
             

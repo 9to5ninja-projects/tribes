@@ -95,6 +95,8 @@ export interface TribeData {
         clay: number;
         flint: number;
     };
+    culture?: number;
+    culture_rate?: number;
     units: Unit[];
     structures: Structure[];
     tech_tree: Record<string, boolean>;

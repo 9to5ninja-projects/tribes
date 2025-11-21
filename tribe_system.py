@@ -12,6 +12,7 @@ class UnitType(str, Enum):
 class StructureType(str, Enum):
     BONFIRE = "bonfire"
     HUT = "hut"
+    WORKSHOP = "workshop"
     RESEARCH_WEAPON = "research_weapon"
     RESEARCH_ARMOR = "research_armor"
     IDOL = "idol"
@@ -22,8 +23,19 @@ class Structure:
         self.x = int(x)
         self.y = int(y)
         self.type = structure_type
+        
+        # Stats
         self.hp = 100
         self.max_hp = 100
+        
+        # Bonfire specific stats
+        if structure_type == StructureType.BONFIRE:
+            self.hp = 20
+            self.max_hp = 20
+            self.decay_rate = 1 # HP loss per turn
+        else:
+            self.decay_rate = 0
+            
         self.stationed_unit_id = None # ID of unit working here
         
         # Construction
@@ -38,6 +50,7 @@ class Structure:
             "y": self.y,
             "type": self.type,
             "hp": self.hp,
+            "max_hp": self.max_hp,
             "stationed_unit_id": self.stationed_unit_id,
             "is_complete": self.is_complete,
             "construction_turns_left": self.construction_turns_left,
@@ -128,6 +141,10 @@ class Tribe:
             "armor": 0
         }
         
+        # Culture
+        self.culture = 0
+        self.culture_rate = 0
+        
         # Training Queue: List of dicts {type, turns_left, x, y}
         self.training_queue = []
         
@@ -141,6 +158,50 @@ class Tribe:
     def add_structure(self, structure):
         self.structures.append(structure)
         self.reveal_area(structure.x, structure.y, radius=3)
+
+    def calculate_culture_income(self):
+        """Calculate yearly culture income"""
+        income = 0
+        
+        # Units
+        for unit in self.units:
+            if unit.hp > 0:
+                income += 1
+                if unit.type == UnitType.SHAMAN:
+                    income += 1 # Shamans give +2 total
+        
+        # Structures
+        for structure in self.structures:
+            if structure.is_complete and structure.hp > 0:
+                if structure.type == StructureType.BONFIRE:
+                    income += 1
+                    
+        return income
+
+    def process_turn_updates(self, is_new_year=False):
+        """Process turn-based updates for tribe (decay, culture, etc)"""
+        messages = []
+        
+        # Structure Decay
+        dead_structures = []
+        for structure in self.structures:
+            if structure.is_complete and structure.decay_rate > 0:
+                structure.hp -= structure.decay_rate
+                if structure.hp <= 0:
+                    dead_structures.append(structure)
+                    messages.append(f"{structure.type.capitalize()} has burned out.")
+        
+        for s in dead_structures:
+            self.structures.remove(s)
+            
+        # Culture Calculation (Yearly)
+        if is_new_year:
+            income = self.calculate_culture_income()
+            self.culture += income
+            self.culture_rate = income # Store for UI
+            messages.append(f"Culture generated: +{income} (Total: {self.culture})")
+            
+        return messages
 
     def process_queues(self):
         """Advance training and construction queues"""
@@ -233,6 +294,8 @@ class Tribe:
         return {
             "name": self.name,
             "stockpile": self.stockpile,
+            "culture": self.culture,
+            "culture_rate": self.culture_rate,
             "units": [u.to_dict() for u in self.units],
             "structures": [s.to_dict() for s in self.structures],
             "tech_tree": self.tech_tree,

@@ -391,10 +391,6 @@ async def unit_action(request: ActionRequest):
         return result
 
     elif request.action_type == "build":
-        # Hunters cannot build anything
-        if unit.type == "hunter":
-            return {"error": "Hunters cannot build structures"}
-
         # Determine build location
         bx = request.build_x if request.build_x is not None else unit.x
         by = request.build_y if request.build_y is not None else unit.y
@@ -415,9 +411,7 @@ async def unit_action(request: ActionRequest):
         st_enum = None
         
         if req_type == "bonfire":
-            # Gatherers and Crafters can build bonfires
-            if unit.type not in ["gatherer", "crafter"]:
-                 return {"error": "This unit cannot build bonfires"}
+            # Any class can build bonfires
             costs = {"wood": 10, "flint": 5}
             st_enum = StructureType.BONFIRE
             
@@ -426,6 +420,12 @@ async def unit_action(request: ActionRequest):
                 return {"error": "Only Crafters can build Huts"}
             costs = {"wood": 20, "fiber": 10}
             st_enum = StructureType.HUT
+
+        elif req_type == "workshop":
+            if unit.type != "crafter":
+                return {"error": "Only Crafters can build Workshops"}
+            costs = {"wood": 20, "stone": 20}
+            st_enum = StructureType.WORKSHOP
             
         elif req_type == "research_weapon":
             if unit.type != "crafter":
@@ -463,6 +463,8 @@ async def unit_action(request: ActionRequest):
             build_turns = 1
         elif st_enum == StructureType.HUT:
             build_turns = 4
+        elif st_enum == StructureType.WORKSHOP:
+            build_turns = 6
         elif st_enum in [StructureType.RESEARCH_WEAPON, StructureType.RESEARCH_ARMOR]:
             build_turns = 8
         elif st_enum == StructureType.IDOL:
@@ -506,6 +508,9 @@ async def unit_action(request: ActionRequest):
             food_cost = 10
             turns = 9
             req_structure = StructureType.BONFIRE
+            # Culture Requirement
+            if current_game.tribe.culture < 5:
+                 return {"error": "Need 5 Culture to recruit Crafter"}
         elif unit_type == "shaman":
             food_cost = 12
             turns = 12
@@ -561,10 +566,17 @@ async def step_turn():
     
     current_game.advance_turn()
     
-    # Process Tribe Queues
+    # Process Tribe Queues & Updates
     queue_messages = []
     if current_game.tribe:
-        queue_messages = current_game.tribe.process_queues()
+        # Process construction/training queues
+        queue_messages.extend(current_game.tribe.process_queues())
+        
+        # Process turn updates (Decay, Culture)
+        # Check if new year (every 4 turns, assuming season 0 is start of year)
+        is_new_year = (current_game.climate.season == 0)
+        update_msgs = current_game.tribe.process_turn_updates(is_new_year)
+        queue_messages.extend(update_msgs)
     
     return {
         "status": "success",

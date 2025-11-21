@@ -86,15 +86,11 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
             console.log("No targets found in range. Unit:", selectedUnit);
             if (onLog) {
                 onLog("No animals in range!");
-            } else {
-                alert("No animals in range!");
             }
         } else if (targets.length === 1) {
             // Just hunt the one
             console.log("Hunting single target:", targets[0]);
-            if (confirm(`Hunt ${targets[0].name} at (${targets[0].x}, ${targets[0].y})?`)) {
-                 onAction && onAction(selectedUnit.id, 'hunt', undefined, targets[0].id);
-            }
+            onAction && onAction(selectedUnit.id, 'hunt', undefined, targets[0].id);
         } else {
             console.log("Opening target selection for:", targets);
             setAvailableTargets(targets);
@@ -117,6 +113,10 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
     const canBuildHut = tribeData && tribeData.stockpile &&
         (tribeData.stockpile.wood || 0) >= 20 && 
         (tribeData.stockpile.fiber || 0) >= 10;
+
+    const canBuildWorkshop = tribeData && tribeData.stockpile &&
+        (tribeData.stockpile.wood || 0) >= 20 && 
+        (tribeData.stockpile.stone || 0) >= 20;
 
     const canBuildResearchWeapon = tribeData && tribeData.stockpile &&
         (tribeData.stockpile.wood || 0) >= 30 && 
@@ -145,7 +145,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
 
     const canRecruitGatherer = tribeData && tribeData.stockpile && (tribeData.stockpile.food || 0) >= 5;
     const canRecruitHunter = tribeData && tribeData.stockpile && (tribeData.stockpile.food || 0) >= 7;
-    const canRecruitCrafter = tribeData && tribeData.stockpile && (tribeData.stockpile.food || 0) >= 10;
+    const canRecruitCrafter = tribeData && tribeData.stockpile && (tribeData.stockpile.food || 0) >= 10 && (tribeData.culture || 0) >= 5;
     const canRecruitShaman = tribeData && tribeData.stockpile && (tribeData.stockpile.food || 0) >= 12;
 
     // Check if selected unit can hunt the selected tile
@@ -170,6 +170,12 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                             <Chip label={`Food: ${tribeData.stockpile.food}`} size="small" color={tribeData.stockpile.food < 10 ? "error" : "default"} />
                             <Chip label={`Wood: ${tribeData.stockpile.wood}`} size="small" />
                             <Chip label={`Flint: ${tribeData.stockpile.flint}`} size="small" />
+                            <Chip 
+                                label={`Culture: ${tribeData.culture || 0} (+${tribeData.culture_rate || 0}/yr)`} 
+                                size="small" 
+                                color="secondary" 
+                                variant="outlined"
+                            />
                         </Box>
                         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                             Units: {tribeData.units.length} | Structures: {tribeData.structures?.length || 0}
@@ -257,7 +263,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                             </Button>
                         )}
 
-                        {(selectedUnit.type === 'gatherer' || selectedUnit.type === 'crafter') && (
+                        {(selectedUnit.type === 'gatherer' || selectedUnit.type === 'crafter' || selectedUnit.type === 'hunter' || selectedUnit.type === 'shaman') && (
                             <Button 
                                 variant="contained" 
                                 size="small" 
@@ -281,6 +287,16 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                                     sx={{ mt: 1, mr: 1 }}
                                 >
                                     Build Hut (20 Wood, 10 Fiber)
+                                </Button>
+                                <Button 
+                                    variant="contained" 
+                                    size="small" 
+                                    color="info"
+                                    onClick={() => onEnterBuildMode && onEnterBuildMode('workshop')}
+                                    disabled={selectedUnit.has_acted || !canBuildWorkshop}
+                                    sx={{ mt: 1, mr: 1 }}
+                                >
+                                    Build Workshop (20 Wood, 20 Stone)
                                 </Button>
                                 <Button 
                                     variant="contained" 
@@ -350,7 +366,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                                     size="small"
                                     color="secondary"
                                     onClick={() => {
-                                        if (confirm("Recruit Crafter (10 Food, 9 Turns)?")) {
+                                        if (confirm("Recruit Crafter (10 Food, 9 Turns, 5 Culture)?")) {
                                             onAction && onAction(selectedUnit.id, 'recruit', undefined, undefined, undefined, undefined, undefined, 'crafter');
                                         }
                                     }}
@@ -446,9 +462,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                                                         color="error" 
                                                         variant="outlined"
                                                         onClick={() => {
-                                                            if (confirm(`Hunt ${ent.species}?`)) {
-                                                                onAction && onAction(selectedUnit!.id, 'hunt', undefined, ent.id);
-                                                            }
+                                                            onAction && onAction(selectedUnit!.id, 'hunt', undefined, ent.id);
                                                         }}
                                                     >
                                                         Hunt
