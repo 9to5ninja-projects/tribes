@@ -13,9 +13,10 @@ interface StatsPanelProps {
     onAction?: (unitId: string, action: string, target?: string, targetId?: string, structureType?: string, buildX?: number, buildY?: number, unitType?: string) => void;
     onEnterBuildMode?: (structureType: string) => void;
     onOpenTribeDetails?: () => void;
+    onLog?: (message: string) => void;
 }
 
-export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, selectedTile, selectedCoords, selectedUnitId, entities, onAction, onEnterBuildMode, onOpenTribeDetails }) => {
+export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, selectedTile, selectedCoords, selectedUnitId, entities, onAction, onEnterBuildMode, onOpenTribeDetails, onLog }) => {
     const [targetSelectionOpen, setTargetSelectionOpen] = useState(false);
     const [availableTargets, setAvailableTargets] = useState<{id: string, name: string, x: number, y: number, type: string, hp: number, max_hp: number}[]>([]);
     
@@ -81,7 +82,11 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
         
         if (targets.length === 0) {
             console.log("No targets found in range.");
-            alert("No animals in range!");
+            if (onLog) {
+                onLog("No animals in range!");
+            } else {
+                alert("No animals in range!");
+            }
         } else if (targets.length === 1) {
             // Just hunt the one
             console.log("Hunting single target:", targets[0]);

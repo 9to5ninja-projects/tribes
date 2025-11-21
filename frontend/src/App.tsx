@@ -478,6 +478,7 @@ function App() {
                 setBuildStructureType(type);
             }}
             onOpenTribeDetails={() => setTribeDetailsOpen(true)}
+            onLog={(msg) => addLog(msg, 'info')}
           />
           
           <Box sx={{ width: 300, display: 'flex', flexDirection: 'column' }}>

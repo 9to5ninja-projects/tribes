@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.1] - 2025-11-21
+### Fixed
+- **Hunt Feedback**: Added a game log message when a hunter tries to hunt but no targets are in range, replacing the browser alert in some cases.
+
 ## [0.16.0] - 2025-11-21
 ### Added
 - **Starting Tribe Configuration**: Added options in the New Game dialog to customize the number of starting Gatherers and Hunters.
