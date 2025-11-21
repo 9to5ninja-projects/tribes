@@ -246,9 +246,7 @@ function App() {
       console.log("Attempting move for unit:", unit);
       
       if (unit) {
-        if (unit.has_moved) {
-            addLog("Unit has already moved this turn.", 'warning');
-        } else {
+        if (!unit.has_moved) {
             const dx = x - unit.x;
             const dy = y - unit.y;
             const dist = Math.abs(dx) + Math.abs(dy);
@@ -260,12 +258,9 @@ function App() {
             if ((dx !== 0 || dy !== 0) && dist <= range) {
                 setMoveConfirmation({x, y, unitId: selectedUnitId});
                 return; // Stop here, do not select the unit on the target tile yet
-            } else {
-                if (dist > range) {
-                    // addLog(`Too far to move (Dist: ${dist}, Range: ${range})`, 'warning');
-                }
             }
         }
+        // If unit has moved or clicked out of range, fall through to inspection
       } else {
         console.log("Unit not found in tribeData");
       }
@@ -386,6 +381,10 @@ function App() {
           if (result.kill) {
               const targetInfo = result.target_species ? `${result.target_species} at (${result.target_location[0]}, ${result.target_location[1]})` : 'Target';
               addLog(`${targetInfo} killed! (+${result.food_gain} food)`, 'success');
+              
+              // Refresh entities to remove dead ones
+              const eData = await gameAPI.getEntities();
+              setEntities(eData);
           }
       }
 

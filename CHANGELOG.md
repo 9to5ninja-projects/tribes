@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.2] - 2025-11-21
+### Fixed
+- **Targeting Logic**: Fixed an issue where clicking a tile to inspect/target an animal after moving a unit would trigger a "Unit has already moved" warning instead of selecting the tile.
+- **Ghost Targets**: Added automatic entity list refresh after a successful kill to prevent dead animals from appearing as valid targets.
+
 ## [0.16.1] - 2025-11-21
 ### Fixed
 - **Hunt Feedback**: Added a game log message when a hunter tries to hunt but no targets are in range, replacing the browser alert in some cases.
