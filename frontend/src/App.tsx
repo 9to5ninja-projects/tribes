@@ -241,6 +241,7 @@ function App() {
     }
 
     // If a unit is selected, try to move it
+    let isMoveAction = false;
     if (selectedUnitId && tribeData) {
       const unit = tribeData.units.find(u => u.id === selectedUnitId);
       console.log("Attempting move for unit:", unit);
@@ -257,7 +258,9 @@ function App() {
             // Check if moving to a new tile within range
             if ((dx !== 0 || dy !== 0) && dist <= range) {
                 setMoveConfirmation({x, y, unitId: selectedUnitId});
-                return; // Stop here, do not select the unit on the target tile yet
+                isMoveAction = true;
+                // Do not return here; allow fall-through to inspect the tile
+                // This allows the user to Cancel the move dialog and still see the tile info (e.g. to Hunt)
             }
         }
         // If unit has moved or clicked out of range, fall through to inspection
@@ -270,36 +273,39 @@ function App() {
     setSelectedCoords({x, y});
     
     // Check if we clicked a unit
-    const clickedUnits = tribeData?.units?.filter(u => u.x === x && u.y === y) || [];
-    
-    if (clickedUnits.length > 1) {
-      // Multiple units - open dialog
-      setUnitsOnTile(clickedUnits);
-      setUnitSelectionOpen(true);
-      setSelectedUnitId(null);
-    } else if (clickedUnits.length === 1) {
-      // Single unit - select it
-      setSelectedUnitId(clickedUnits[0].id);
-    } else {
-      // No unit on this tile
-      // Only deselect if we are NOT inspecting a tile within range of the currently selected unit
-      // This allows "Targeted Hunting" where we select a hunter, then click a target tile
-      if (selectedUnitId && tribeData) {
-        const unit = tribeData.units.find(u => u.id === selectedUnitId);
-        if (unit) {
-            const dist = Math.abs(unit.x - x) + Math.abs(unit.y - y);
-            // If within interaction range (2 for hunt/move), keep selected
-            if (dist <= 2) {
-                // Keep selected
+    // Only select new unit if we are NOT in the middle of a move action
+    if (!isMoveAction) {
+        const clickedUnits = tribeData?.units?.filter(u => u.x === x && u.y === y) || [];
+        
+        if (clickedUnits.length > 1) {
+          // Multiple units - open dialog
+          setUnitsOnTile(clickedUnits);
+          setUnitSelectionOpen(true);
+          setSelectedUnitId(null);
+        } else if (clickedUnits.length === 1) {
+          // Single unit - select it
+          setSelectedUnitId(clickedUnits[0].id);
+        } else {
+          // No unit on this tile
+          // Only deselect if we are NOT inspecting a tile within range of the currently selected unit
+          // This allows "Targeted Hunting" where we select a hunter, then click a target tile
+          if (selectedUnitId && tribeData) {
+            const unit = tribeData.units.find(u => u.id === selectedUnitId);
+            if (unit) {
+                const dist = Math.abs(unit.x - x) + Math.abs(unit.y - y);
+                // If within interaction range (2 for hunt/move), keep selected
+                if (dist <= 2) {
+                    // Keep selected
+                } else {
+                    setSelectedUnitId(null);
+                }
             } else {
                 setSelectedUnitId(null);
             }
-        } else {
+          } else {
             setSelectedUnitId(null);
+          }
         }
-      } else {
-        setSelectedUnitId(null);
-      }
     }
 
     try {
@@ -479,6 +485,7 @@ function App() {
             onEnterBuildMode={(type) => {
                 setBuildMode(true);
                 setBuildStructureType(type);
+                addLog(`Select an adjacent tile to build ${type}`, 'info');
             }}
             onOpenTribeDetails={() => setTribeDetailsOpen(true)}
             onLog={(msg) => addLog(msg, 'info')}

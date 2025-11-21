@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.3] - 2025-11-21
+### Fixed
+- **Inspection vs Movement**: Fixed a UX issue where clicking a tile to inspect it (e.g., to hunt an animal) would trigger a "Move Confirmation" dialog and block inspection if the unit hadn't moved yet. Now, the tile is inspected immediately, allowing interaction even if the move dialog is open or cancelled.
+- **Build Mode Feedback**: Added a log message when entering build mode to guide the user to select an adjacent tile.
+
 ## [0.16.2] - 2025-11-21
 ### Fixed
 - **Targeting Logic**: Fixed an issue where clicking a tile to inspect/target an animal after moving a unit would trigger a "Unit has already moved" warning instead of selecting the tile.
