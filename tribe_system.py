@@ -116,10 +116,11 @@ class Unit:
         }
 
 class Tribe:
-    def __init__(self, world_width, world_height):
+    def __init__(self, world_width, world_height, fog_of_war=True):
         self.name = "Player Tribe"
         self.units = []
         self.structures = []
+        self.fog_of_war = fog_of_war
         self.stockpile = {
             "wood": 0,
             "stone": 0,
@@ -148,8 +149,20 @@ class Tribe:
         # Training Queue: List of dicts {type, turns_left, x, y}
         self.training_queue = []
         
+        # Population History
+        self.population_history = {
+            'total': [],
+            'gatherer': [],
+            'hunter': [],
+            'crafter': [],
+            'shaman': []
+        }
+        
         # Fog of War: False = hidden, True = revealed
-        self.fog_map = np.zeros((world_height, world_width), dtype=bool)
+        if self.fog_of_war:
+            self.fog_map = np.zeros((world_height, world_width), dtype=bool)
+        else:
+            self.fog_map = np.ones((world_height, world_width), dtype=bool)
         
     def add_unit(self, unit):
         self.units.append(unit)
@@ -181,6 +194,21 @@ class Tribe:
     def process_turn_updates(self, is_new_year=False):
         """Process turn-based updates for tribe (decay, culture, etc)"""
         messages = []
+        
+        # Track Population History
+        counts = {
+            'gatherer': 0,
+            'hunter': 0,
+            'crafter': 0,
+            'shaman': 0
+        }
+        for unit in self.units:
+            if unit.type in counts:
+                counts[unit.type] += 1
+        
+        self.population_history['total'].append(len(self.units))
+        for type_name, count in counts.items():
+            self.population_history[type_name].append(count)
         
         # Structure Decay
         dead_structures = []
@@ -232,6 +260,9 @@ class Tribe:
 
     def reveal_area(self, x, y, radius):
         """Reveal area around a point (Radial)"""
+        if not self.fog_of_war:
+            return # Map is already fully revealed
+
         h, w = self.fog_map.shape
         
         # Define bounding box to limit iteration
@@ -265,18 +296,12 @@ class Tribe:
             self.reveal_area(structure.x, structure.y, radius=3)
 
     def consume_food(self):
-        """Consume food for all units (1 per unit per year)"""
-        base_consumption = len(self.units)
-        
-        # Huts reduce consumption (only completed huts)
-        huts = [s for s in self.structures if s.type == StructureType.HUT and s.is_complete]
-        reduction = len(huts) * 3
-        
-        consumption = max(0, base_consumption - reduction)
+        """Consume food for all units based on class"""
+        consumption, reduction = self.get_expected_food_consumption()
         
         if self.stockpile["food"] >= consumption:
             self.stockpile["food"] -= consumption
-            return True, f"Tribe consumed {consumption} food (Base: {base_consumption}, Reduced by Huts: {reduction})."
+            return True, f"Tribe consumed {consumption} food (Base: {consumption + reduction}, Reduced by Huts: {reduction})."
         else:
             # Starvation logic
             deficit = consumption - self.stockpile["food"]
@@ -290,12 +315,34 @@ class Tribe:
                 
             return False, f"Starvation! {deficit} units suffered."
 
+    def get_expected_food_consumption(self):
+        """Calculate expected food consumption for next turn"""
+        consumption_rates = {
+            UnitType.GATHERER: 1,
+            UnitType.HUNTER: 2,
+            UnitType.CRAFTER: 3,
+            UnitType.SHAMAN: 4
+        }
+        
+        base_consumption = 0
+        for unit in self.units:
+            base_consumption += consumption_rates.get(unit.type, 1)
+        
+        # Huts reduce consumption (only completed huts)
+        huts = [s for s in self.structures if s.type == StructureType.HUT and s.is_complete]
+        reduction = len(huts) * 3
+        
+        consumption = max(0, base_consumption - reduction)
+        return consumption, reduction
+
     def to_dict(self):
+        consumption, reduction = self.get_expected_food_consumption()
         return {
             "name": self.name,
             "stockpile": self.stockpile,
             "culture": self.culture,
             "culture_rate": self.culture_rate,
+            "expected_food_consumption": consumption,
             "units": [u.to_dict() for u in self.units],
             "structures": [s.to_dict() for s in self.structures],
             "tech_tree": self.tech_tree,

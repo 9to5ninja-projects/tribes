@@ -147,6 +147,12 @@ class PredatorSystem:
                         spawned += 1
             
             print(f"  🐺 Spawned {spawned} {species_name}")
+        
+        # Initialize history
+        for species_name in self.predator_species.keys():
+            count = sum(1 for p in self.predators if p.species == species_name)
+            self.population_history[species_name].append(count)
+            self.kill_history[species_name].append(0)
     
     def update(self, climate_engine, tribe_units=None):
         """Update all predator behaviors"""

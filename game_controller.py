@@ -49,6 +49,9 @@ class WorldConfig:
         # Climate intensity
         self.seasonal_variation = 1.0  # How extreme seasons are
         self.weather_intensity = 1.0   # Storm/drought severity
+        
+        # Game Rules
+        self.fog_of_war = True
     
     def to_dict(self):
         """Convert to dictionary for saving"""
@@ -66,7 +69,8 @@ class WorldConfig:
             'disease_frequency': self.disease_frequency,
             'disaster_frequency': self.disaster_frequency,
             'seasonal_variation': self.seasonal_variation,
-            'weather_intensity': self.weather_intensity
+            'weather_intensity': self.weather_intensity,
+            'fog_of_war': self.fog_of_war
         }
     
     @classmethod
@@ -109,13 +113,19 @@ class GameState:
             'death_causes': {},    # Aggregated death causes
             'food_chain': {}       # Aggregated predation stats: {predator: {prey: count}}
         }
+        
+        # Temporary log for the current turn (sent to frontend)
+        self.current_turn_log = []
     
-    def initialize_world(self, starting_units=None, preferred_biome=None):
+    def initialize_world(self, starting_units=None, preferred_biome=None, fog_of_war=True):
         """Generate new world from config"""
         print("=== WORLD GENERATION ===")
         print(f"Dimensions: {self.config.width}x{self.config.height}")
         print(f"Sea level: {self.config.sea_level}")
         print(f"Seed: {self.config.seed if self.config.seed else 'Random'}")
+        print(f"Fog of War: {fog_of_war}")
+        
+        self.config.fog_of_war = fog_of_war
         
         # Generate terrain
         self.world = WorldGenerator(
@@ -208,7 +218,7 @@ class GameState:
 
         # Initialize Tribe
         print("\nInitializing Tribe...")
-        self.tribe = Tribe(self.config.width, self.config.height)
+        self.tribe = Tribe(self.config.width, self.config.height, fog_of_war=self.config.fog_of_war)
         
         # Find a valid start location (land, preferably forest/grassland)
         start_x, start_y = self._find_start_location(preferred_biome)
@@ -230,6 +240,21 @@ class GameState:
             self.tribe.add_unit(Unit(start_x, start_y, UnitType.GATHERER))
             self.tribe.add_unit(Unit(start_x, start_y, UnitType.HUNTER))
         
+        # Initialize History for Turn 0
+        if self.ecology:
+            self.ecology.scavenger_history.append(len(self.ecology.scavengers))
+            self.ecology.avian_history.append(len(self.ecology.avian_creatures))
+            self.ecology.aquatic_history.append(len(self.ecology.aquatic_creatures))
+            
+        if self.tribe:
+            counts = {'gatherer': 0, 'hunter': 0, 'crafter': 0, 'shaman': 0}
+            for unit in self.tribe.units:
+                if unit.type in counts:
+                    counts[unit.type] += 1
+            self.tribe.population_history['total'].append(len(self.tribe.units))
+            for type_name, count in counts.items():
+                self.tribe.population_history[type_name].append(count)
+
         self.turn = 0
         print("\n=== WORLD READY ===")
         self.print_status()
@@ -337,6 +362,7 @@ class GameState:
         
         self.turn += 1
         self.statistics['total_turns'] += 1
+        self.current_turn_log = [] # Clear log for new turn
         
         # Update all systems
         self.climate.advance_turn()
@@ -394,7 +420,11 @@ class GameState:
         """Return historical population data for graphs"""
         history = {
             'herbivores': {},
-            'predators': {}
+            'predators': {},
+            'scavengers': [],
+            'avian': [],
+            'aquatic': [],
+            'tribe': {}
         }
         
         if self.animals:
@@ -402,6 +432,14 @@ class GameState:
             
         if self.predators:
             history['predators'] = self.predators.population_history
+            
+        if self.ecology:
+            history['scavengers'] = self.ecology.scavenger_history
+            history['avian'] = self.ecology.avian_history
+            history['aquatic'] = self.ecology.aquatic_history
+            
+        if self.tribe:
+            history['tribe'] = self.tribe.population_history
             
         return history
 
@@ -446,6 +484,9 @@ class GameState:
         
         timestamp = f"Y{self.climate.year} {self.climate._season_name()}"
         self.statistics['event_log'].append({'turn': self.turn, 'time': timestamp, 'msg': message})
+        
+        # Add to current turn log for immediate frontend display
+        self.current_turn_log.append(message)
         
         # Keep log size manageable
         if len(self.statistics['event_log']) > 50:
@@ -606,7 +647,18 @@ class SaveSystem:
                     'energy': a.energy,
                     'age': a.age
                 } for a in game_state.ecology.aquatic_creatures
-            ]
+            ],
+            
+            # Tribe
+            'tribe': game_state.tribe.to_dict() if game_state.tribe else None,
+            
+            # History
+            'history_scavengers': game_state.ecology.scavenger_history,
+            'history_avian': game_state.ecology.avian_history,
+            'history_aquatic': game_state.ecology.aquatic_history,
+            'history_tribe': game_state.tribe.population_history if game_state.tribe else {},
+            'history_herbivores': game_state.animals.population_history if game_state.animals else {},
+            'history_predators': game_state.predators.population_history if game_state.predators else {}
         }
         
         with open(filepath, 'w') as f:
@@ -701,12 +753,75 @@ class SaveSystem:
             aq.energy = aq_data['energy']
             aq.age = aq_data['age']
             game_state.ecology.aquatic_creatures.append(aq)
+            
+        # Restore Ecology History
+        if 'history_scavengers' in save_data:
+            game_state.ecology.scavenger_history = save_data['history_scavengers']
+        if 'history_avian' in save_data:
+            game_state.ecology.avian_history = save_data['history_avian']
+        if 'history_aquatic' in save_data:
+            game_state.ecology.aquatic_history = save_data['history_aquatic']
+            
+        # Restore Animal History
+        if 'history_herbivores' in save_data and game_state.animals:
+            game_state.animals.population_history = save_data['history_herbivores']
+            
+        if 'history_predators' in save_data and game_state.predators:
+            game_state.predators.population_history = save_data['history_predators']
+        
+        # Restore Tribe
+        if 'tribe' in save_data and save_data['tribe']:
+            from tribe_system import Tribe, Unit, Structure, UnitType, StructureType
+            t_data = save_data['tribe']
+            game_state.tribe = Tribe(config.width, config.height)
+            game_state.tribe.name = t_data['name']
+            game_state.tribe.stockpile = t_data['stockpile']
+            game_state.tribe.culture = t_data.get('culture', 0)
+            game_state.tribe.culture_rate = t_data.get('culture_rate', 0)
+            game_state.tribe.tech_tree = t_data['tech_tree']
+            game_state.tribe.research_levels = t_data.get('research_levels', {})
+            game_state.tribe.training_queue = t_data.get('training_queue', [])
+            
+            # Restore Units
+            for u_data in t_data['units']:
+                u = Unit(u_data['x'], u_data['y'], UnitType(u_data['type']))
+                u.id = u_data['id']
+                u.hp = u_data['hp']
+                u.max_hp = u_data['max_hp']
+                u.energy = u_data['energy']
+                u.max_energy = u_data['max_energy']
+                u.name = u_data['name']
+                u.has_moved = u_data['has_moved']
+                u.has_acted = u_data['has_acted']
+                u.is_working = u_data.get('is_working', False)
+                game_state.tribe.units.append(u)
+                
+            # Restore Structures
+            for s_data in t_data['structures']:
+                s = Structure(s_data['x'], s_data['y'], StructureType(s_data['type']))
+                s.id = s_data['id']
+                s.hp = s_data['hp']
+                s.max_hp = s_data['max_hp']
+                s.stationed_unit_id = s_data['stationed_unit_id']
+                s.is_complete = s_data['is_complete']
+                s.construction_turns_left = s_data['construction_turns_left']
+                s.max_construction_turns = s_data['max_construction_turns']
+                game_state.tribe.structures.append(s)
+            
+            # Restore Fog
+            if 'fog_map' in t_data:
+                game_state.tribe.fog_map = np.array(t_data['fog_map'])
+            else:
+                game_state.tribe.update_visibility()
+                
+            # Restore Tribe History
+            if 'history_tribe' in save_data:
+                game_state.tribe.population_history = save_data['history_tribe']
         
         # Restore game state
         game_state.turn = save_data['turn']
         game_state.statistics = save_data['statistics']
         
-        print(f"✓ Game loaded successfully (Turn {game_state.turn})")
         return game_state
 
 

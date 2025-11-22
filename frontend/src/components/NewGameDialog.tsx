@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Slider, Typography, Box, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Slider, Typography, Box, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
 import type { GameConfig } from '../gameAPI';
 
 interface NewGameDialogProps {
@@ -15,8 +15,9 @@ export const NewGameDialog: React.FC<NewGameDialogProps> = ({ open, onClose, onS
         sea_level: 0.42,
         herbivore_population: 120,
         predator_population: 10,
-        starting_biome: 'Savanna',
-        starting_units: { gatherer: 2, hunter: 1 }
+        starting_biome: 'Random',
+        starting_units: { gatherer: 2, hunter: 1 },
+        fog_of_war: true
     });
 
     const handleChange = (key: keyof GameConfig, value: any) => {
@@ -72,10 +73,11 @@ export const NewGameDialog: React.FC<NewGameDialogProps> = ({ open, onClose, onS
                         <FormControl fullWidth>
                             <InputLabel>Starting Biome</InputLabel>
                             <Select
-                                value={config.starting_biome || 'Savanna'}
+                                value={config.starting_biome || 'Random'}
                                 label="Starting Biome"
                                 onChange={(e) => handleChange('starting_biome', e.target.value)}
                             >
+                                <MenuItem value="Random">Random</MenuItem>
                                 <MenuItem value="Savanna">Savanna</MenuItem>
                                 <MenuItem value="Grassland">Grassland</MenuItem>
                                 <MenuItem value="Forest">Forest</MenuItem>
@@ -87,6 +89,17 @@ export const NewGameDialog: React.FC<NewGameDialogProps> = ({ open, onClose, onS
                                 <MenuItem value="Mountain">Mountain</MenuItem>
                             </Select>
                         </FormControl>
+                    </Box>
+                    <Box>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={config.fog_of_war ?? true}
+                                    onChange={(e) => handleChange('fog_of_war', e.target.checked)}
+                                />
+                            }
+                            label="Fog of War"
+                        />
                     </Box>
                     <Box>
                         <Typography gutterBottom>Herbivore Population: {config.herbivore_population}</Typography>

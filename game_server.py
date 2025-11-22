@@ -40,6 +40,7 @@ class NewGameRequest(BaseModel):
     predator_population: int = 10
     starting_units: dict = {"gatherer": 2, "hunter": 1}
     starting_biome: Optional[str] = None
+    fog_of_war: bool = True
 
 class MoveUnitRequest(BaseModel):
     unit_id: str
@@ -81,9 +82,16 @@ async def new_game(config: NewGameRequest):
     world_config.predator_population = config.predator_population
     
     current_game = GameState(world_config)
+    
+    # Handle "Random" biome selection
+    biome_pref = config.starting_biome
+    if biome_pref == "Random":
+        biome_pref = None
+        
     current_game.initialize_world(
         starting_units=config.starting_units,
-        preferred_biome=config.starting_biome
+        preferred_biome=biome_pref,
+        fog_of_war=config.fog_of_war
     )
     
     return {
@@ -119,7 +127,8 @@ async def get_entities():
         "herbivores": [],
         "predators": [],
         "avian": [],
-        "aquatic": []
+        "aquatic": [],
+        "scavengers": []
     }
     
     # Herbivores
@@ -150,8 +159,9 @@ async def get_entities():
                 "defense": int(pred.combat_stats.defense)
             })
     
-    # Avian
+    # Ecology
     if current_game.ecology:
+        # Avian
         for bird in current_game.ecology.avian_creatures:
             entities["avian"].append({
                 "species": bird.species,
@@ -170,6 +180,16 @@ async def get_entities():
                 "hp": int(aq.energy * 100),
                 "max_hp": 100
             })
+            
+        # Scavengers
+        for scav in current_game.ecology.scavengers:
+            entities["scavengers"].append({
+                "species": scav.species,
+                "x": int(scav.x),
+                "y": int(scav.y),
+                "hp": int(scav.energy * 100),
+                "max_hp": 100
+            })
     
     return entities
 
@@ -185,7 +205,10 @@ async def get_stats():
     # Add summary for frontend compatibility
     stats["population"] = {
         "herbivores": sum(stats["populations"].get("herbivores", {}).values()),
-        "predators": sum(stats["populations"].get("predators", {}).values())
+        "predators": sum(stats["populations"].get("predators", {}).values()),
+        "scavengers": stats["populations"].get("scavengers", 0),
+        "avian": stats["populations"].get("avian", 0),
+        "aquatic": stats["populations"].get("aquatic", 0)
     }
 
     # Add tribe stats if available
@@ -568,6 +591,11 @@ async def step_turn():
     
     # Process Tribe Queues & Updates
     queue_messages = []
+    
+    # Add general game events (attacks, deaths, etc)
+    if hasattr(current_game, 'current_turn_log'):
+        queue_messages.extend(current_game.current_turn_log)
+        
     if current_game.tribe:
         # Process construction/training queues
         queue_messages.extend(current_game.tribe.process_queues())

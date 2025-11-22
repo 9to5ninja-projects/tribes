@@ -111,6 +111,11 @@ class AnimalSystem:
                     spawned += 1
             
             print(f"  🦌 Spawned {spawned} {species_name}")
+        
+        # Initialize history
+        for species_name in self.herbivore_species.keys():
+            count = sum(1 for a in self.herbivores if a.species == species_name)
+            self.population_history[species_name].append(count)
     
     def update(self, climate_engine, predators_list=None, tribe_units=None):
         """Update all animal behaviors for one turn"""

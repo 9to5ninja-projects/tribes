@@ -10,6 +10,7 @@ export interface GameConfig {
     predator_population: number;
     starting_biome?: string;
     starting_units?: { [key: string]: number };
+    fog_of_war?: boolean;
 }
 
 export interface WorldData {
@@ -35,6 +36,7 @@ export interface EntityList {
     predators: Entity[];
     avian: Entity[];
     aquatic: Entity[];
+    scavengers: Entity[];
 }
 
 export interface GameStats {
@@ -43,6 +45,23 @@ export interface GameStats {
     population: {
         herbivores: number;
         predators: number;
+        scavengers: number;
+        avian: number;
+        aquatic: number;
+    };
+    history?: {
+        herbivores: Record<string, number[]>;
+        predators: Record<string, number[]>;
+        scavengers: number[];
+        avian: number[];
+        aquatic: number[];
+        tribe: {
+            total: number[];
+            gatherer: number[];
+            hunter: number[];
+            crafter: number[];
+            shaman: number[];
+        };
     };
     [key: string]: any;
 }
@@ -97,6 +116,7 @@ export interface TribeData {
     };
     culture?: number;
     culture_rate?: number;
+    expected_food_consumption?: number;
     units: Unit[];
     structures: Structure[];
     tech_tree: Record<string, boolean>;

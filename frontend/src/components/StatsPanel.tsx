@@ -177,6 +177,11 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                                 variant="outlined"
                             />
                         </Box>
+                        {tribeData.expected_food_consumption !== undefined && (
+                            <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary' }}>
+                                Expected Consumption: {tribeData.expected_food_consumption} food/year
+                            </Typography>
+                        )}
                         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                             Units: {tribeData.units.length} | Structures: {tribeData.structures?.length || 0}
                         </Typography>
@@ -412,6 +417,9 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, tribeData, select
                         <Typography variant="subtitle2">Population</Typography>
                         <Typography>Herbivores: {stats.population.herbivores}</Typography>
                         <Typography>Predators: {stats.population.predators}</Typography>
+                        <Typography>Scavengers: {stats.population.scavengers}</Typography>
+                        <Typography>Avian: {stats.population.avian}</Typography>
+                        <Typography>Aquatic: {stats.population.aquatic}</Typography>
                     </>
                 ) : (
                     <Typography color="text.secondary">No game active</Typography>

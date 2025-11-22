@@ -125,6 +125,23 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
             };
         };
 
+        // Helper to draw health bar
+        const drawHealthBar = (x: number, y: number, hp: number, maxHp: number) => {
+            const barWidth = tileSize * 0.8;
+            const barHeight = tileSize * 0.15;
+            const xPos = x + (tileSize - barWidth) / 2;
+            const yPos = y - barHeight - 2; // Slightly above the unit
+
+            // Background (Black)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(xPos, yPos, barWidth, barHeight);
+
+            // Health (Green to Red)
+            const pct = Math.max(0, Math.min(1, hp / maxHp));
+            ctx.fillStyle = pct > 0.5 ? '#00e676' : '#f44336';
+            ctx.fillRect(xPos + 1, yPos + 1, (barWidth - 2) * pct, barHeight - 2);
+        };
+
         // Draw entities
         if (entities) {
             // Herbivores (Green/Brown circles)
@@ -139,6 +156,8 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                     ctx.beginPath();
                     ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/3, 0, Math.PI * 2);
                     ctx.fill();
+
+                    drawHealthBar(pos.x, pos.y, e.hp, e.max_hp);
                 });
             }
 
@@ -153,6 +172,56 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                     const pos = toScreen(e.x, e.y);
                     ctx.beginPath();
                     ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    drawHealthBar(pos.x, pos.y, e.hp, e.max_hp);
+                });
+            }
+
+            // Avian (Yellow/White stars/circles)
+            if (entities.avian) {
+                entities.avian.forEach(e => {
+                    if (!isInView(e.x, e.y)) return;
+                    const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
+                    if (!isRevealed) return;
+
+                    const pos = toScreen(e.x, e.y);
+                    ctx.fillStyle = '#ffeb3b'; // Yellow
+                    ctx.beginPath();
+                    // Draw a small triangle or star-like shape
+                    ctx.moveTo(pos.x + tileSize/2, pos.y + tileSize/4);
+                    ctx.lineTo(pos.x + tileSize*0.7, pos.y + tileSize*0.7);
+                    ctx.lineTo(pos.x + tileSize*0.3, pos.y + tileSize*0.7);
+                    ctx.fill();
+                });
+            }
+
+            // Aquatic (Cyan circles)
+            if (entities.aquatic) {
+                ctx.fillStyle = '#00bcd4';
+                entities.aquatic.forEach(e => {
+                    if (!isInView(e.x, e.y)) return;
+                    const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
+                    if (!isRevealed) return;
+
+                    const pos = toScreen(e.x, e.y);
+                    ctx.beginPath();
+                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            // Scavengers (Grey/Brown small circles)
+            if (entities.scavengers) {
+                ctx.fillStyle = '#5d4037';
+                entities.scavengers.forEach(e => {
+                    if (!isInView(e.x, e.y)) return;
+                    const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
+                    if (!isRevealed) return;
+
+                    const pos = toScreen(e.x, e.y);
+                    ctx.beginPath();
+                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/4, 0, Math.PI * 2);
                     ctx.fill();
                 });
             }
@@ -294,6 +363,8 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 1;
                 ctx.stroke();
+
+                drawHealthBar(pos.x, pos.y, unit.hp, unit.max_hp);
             });
         }
 

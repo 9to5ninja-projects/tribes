@@ -208,8 +208,22 @@ function App() {
 
   const handleStep = async () => {
     try {
-      await gameAPI.step();
+      const stepResult = await gameAPI.step();
       addLog(`Turn advanced.`, 'info');
+      
+      // Log messages from the server (events, queue updates, etc)
+      if (stepResult.messages && Array.isArray(stepResult.messages)) {
+          stepResult.messages.forEach((msg: string) => {
+              // Determine type based on content
+              let type: 'info' | 'success' | 'error' | 'warning' = 'info';
+              if (msg.includes('killed') || msg.includes('died')) type = 'error';
+              else if (msg.includes('complete') || msg.includes('generated')) type = 'success';
+              else if (msg.includes('attacked')) type = 'warning';
+              
+              addLog(msg, type);
+          });
+      }
+
       const [eData, sData, tData] = await Promise.all([
         gameAPI.getEntities(),
         gameAPI.getStats(),
@@ -338,12 +352,12 @@ function App() {
     const dy = y - unit.y;
 
     try {
-        addLog(`Moving unit to (${x}, ${y})...`, 'info');
+        addLog(`Moving ${unit.name} to (${x}, ${y})...`, 'info');
         const result = await gameAPI.moveUnit(unitId, dx, dy);
         if (result.error) {
             addLog(`Move failed: ${result.error}`, 'error');
         } else {
-            addLog(`Unit moved to (${x}, ${y})`, 'success');
+            addLog(`${unit.name} moved to (${x}, ${y})`, 'success');
             // Refresh tribe data to show new position
             const [tData, eData] = await Promise.all([
                 gameAPI.getTribe(),
@@ -382,18 +396,21 @@ function App() {
 
   const handleUnitAction = async (unitId: string, action: string, target?: string, targetId?: string, structureType?: string, buildX?: number, buildY?: number, unitType?: string) => {
     try {
+      const unit = tribeData?.units.find(u => u.id === unitId);
+      const unitName = unit ? unit.name : 'Unit';
+
       const result = await gameAPI.unitAction(unitId, action, target, targetId, structureType, buildX, buildY, unitType);
       
       if (result.error) {
-          addLog(`Action '${action}' failed: ${result.error}`, 'error');
+          addLog(`${unitName}: Action '${action}' failed: ${result.error}`, 'error');
       } else {
-          addLog(result.message || `Action '${action}' successful`, 'success');
+          addLog(result.message || `${unitName}: Action '${action}' successful`, 'success');
           if (result.gathered) {
-              addLog(`Gathered ${result.gathered} ${result.resource}`, 'success');
+              addLog(`${unitName} gathered ${result.gathered} ${result.resource}`, 'success');
           }
           if (result.damage) {
               const targetName = result.target_species || 'Target';
-              addLog(`Dealt ${result.damage} damage to ${targetName}`, 'success');
+              addLog(`${unitName} dealt ${result.damage} damage to ${targetName}`, 'success');
               
               if (!result.kill && result.target_hp !== undefined) {
                   addLog(`${targetName} has ${result.target_hp} HP remaining.`, 'warning');
@@ -593,7 +610,11 @@ function App() {
         <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} maxWidth="lg" fullWidth>
             <DialogTitle>World Statistics</DialogTitle>
             <DialogContent>
-                <StatisticsPanel history={(stats as any)?.history} />
+                <StatisticsPanel 
+                    history={(stats as any)?.history} 
+                    deathCauses={(stats as any)?.death_causes}
+                    foodChain={(stats as any)?.food_chain}
+                />
             </DialogContent>
             <DialogActions>
                 <Button onClick={() => setStatsOpen(false)}>Close</Button>
