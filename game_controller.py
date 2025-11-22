@@ -160,6 +160,10 @@ class GameState:
         self.predators.set_logger(self.log_interaction)
         
         self.ecology = EventsEcologySystem(self.world, self.vegetation, self.animals, self.predators)
+        
+        # Link ecology back to animal systems for insect consumption
+        self.animals.ecology = self.ecology
+        self.predators.ecology = self.ecology
 
         # Apply balance configurations
         print("\nApplying ecosystem balance...")
@@ -205,6 +209,11 @@ class GameState:
             self.world, self.vegetation, self.animals, self.predators
         )
         self.ecology.set_logger(self.log_interaction)
+        
+        # Re-link ecology back to animal systems
+        self.animals.ecology = self.ecology
+        self.predators.ecology = self.ecology
+        
         self.ecology.spawn_scavengers(count=self.config.scavenger_population)
         self.ecology.spawn_avian_species(count=self.config.avian_population)
         self.ecology.spawn_aquatic_species(count=self.config.aquatic_population)

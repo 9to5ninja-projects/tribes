@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from srpg_stats import create_stats_from_template, HERBIVORE_STATS
 from srpg_combat import CombatResolver
+from balance_config import HERBIVORE_CONFIG
 import uuid
 
 class Animal:
@@ -61,9 +62,10 @@ class Animal:
 
 
 class AnimalSystem:
-    def __init__(self, world_generator, vegetation_system):
+    def __init__(self, world_generator, vegetation_system, ecology_system=None):
         self.world = world_generator
         self.vegetation = vegetation_system
+        self.ecology = ecology_system
         self.width = world_generator.width
         self.height = world_generator.height
         self.combat_resolver = CombatResolver(world_generator)
@@ -152,7 +154,14 @@ class AnimalSystem:
             animal.age += 1
             
             # Base metabolism cost (1 HP per turn + age factor)
-            metabolism_cost = 1
+            base_cost = 1
+            multiplier = HERBIVORE_CONFIG.get('metabolism_multiplier', 1.0)
+            
+            # Apply multiplier (probabilistic for fractional values)
+            cost_float = base_cost * multiplier
+            metabolism_cost = int(cost_float)
+            if np.random.random() < (cost_float - metabolism_cost):
+                metabolism_cost += 1
             
             # Mortality check (Old Age)
             if animal.env_stats and animal.age > animal.env_stats.max_age:
@@ -358,7 +367,14 @@ class AnimalSystem:
                 # animal.combat_stats.take_damage(1)
     
     def _feed_animal(self, animal, species_data):
-        """Animal attempts to eat vegetation"""
+        """Animal attempts to eat vegetation or insects"""
+        # Insectivores (like frogs) eat insects if available
+        if animal.species == 'frog' and self.ecology and self.ecology.insects:
+            consumed = self.ecology.insects.consume(animal.x, animal.y, amount=0.1)
+            if consumed > 0:
+                animal.gain_energy(consumed * 2.0) # Insects are very nutritious for frogs
+                return
+
         veg_density = self.vegetation.density[animal.y, animal.x]
         
         # Use combat resolver for feeding

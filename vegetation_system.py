@@ -25,12 +25,14 @@ class VegetationSystem:
             9: 0.08,   # Tundra - very slow
             10: 0.0,   # Snow - no growth
             11: 0.03,  # Mountain - sparse alpine vegetation
+            12: 0.22,  # Swamp - high growth
         }
         
         # Biome-specific maximum density
         self.biome_max_density = {
             0: 0.0, 1: 0.0, 2: 0.3, 3: 0.2, 4: 0.6, 5: 0.8,
-            6: 1.0, 7: 0.9, 8: 0.7, 9: 0.4, 10: 0.0, 11: 0.3
+            6: 1.0, 7: 0.9, 8: 0.7, 9: 0.4, 10: 0.0, 11: 0.3,
+            12: 0.95  # Swamp
         }
         
         # Seed initial vegetation (sparse)

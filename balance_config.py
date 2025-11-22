@@ -63,15 +63,15 @@ SPAWN_CONFIG = {
     'herbivore_establishment_years': 5,   # More time before predators (was 3)
     'predator_delay_years': 2,            # Additional delay before predators
     
-    # Initial populations
-    'herbivore_per_species': 120,  # Up from 100
-    'predator_per_species': 10,    # Down from 15
-    'scavenger_count': 25,         # Down from 40
-    'avian_count': 80,             # Down from 100
-    'aquatic_count': 120,          # Down from 150
+    # Initial populations (Based on 100:10:1 ratio)
+    'herbivore_per_species': 150,  # Up from 120
+    'predator_per_species': 15,    # Up from 10
+    'scavenger_count': 40,         # Up from 25
+    'avian_count': 120,            # Up from 80
+    'aquatic_count': 200,          # Up from 120
     
     # Spawn quality checks
-    'herbivore_min_vegetation': 0.15,  # Must have vegetation nearby (was 0.2)
+        'herbivore_min_vegetation': 0.5,  # Increased from 0.15 to prevent instant starvation
     'predator_min_prey_nearby': 5,     # Must have prey nearby to spawn
 }
 

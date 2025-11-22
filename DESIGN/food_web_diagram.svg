@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <defs>
+    <style>
+      .producer { fill: #4CAF50; }
+      .herbivore { fill: #8BC34A; }
+      .predator { fill: #FF9800; }
+      .apex { fill: #F44336; }
+      .scavenger { fill: #9E9E9E; }
+      .omnivore { fill: #FFC107; }
+      .label { font-family: Arial, sans-serif; font-size: 11px; text-anchor: middle; fill: #000; }
+      .arrow { stroke: #666; stroke-width: 1.5; fill: none; opacity: 0.4; marker-end: url(#arrowhead); }
+      .title { font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; fill: #333; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#666" opacity="0.6"/>
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="600" y="25" class="title" text-anchor="middle">ECOLOGICAL FOOD WEB - Trophic Levels &amp; Energy Flow</text>
+  
+  <!-- LEVEL 0: PRODUCERS -->
+  <g id="producers">
+    <text x="600" y="75" class="label" font-weight="bold">PRIMARY PRODUCERS (Implied)</text>
+    <ellipse cx="600" cy="100" rx="150" ry="25" class="producer" opacity="0.3"/>
+    <text x="600" y="105" class="label">Grasses • Shrubs • Aquatic Plants</text>
+  </g>
+  
+  <!-- LEVEL 1: HERBIVORES -->
+  <g id="herbivores">
+    <text x="100" y="185" class="label" font-weight="bold">HERBIVORES</text>
+    
+    <!-- Terrestrial -->
+    <circle cx="100" cy="210" r="18" class="herbivore"/><text x="100" y="245" class="label">Rabbit</text>
+    <circle cx="200" cy="210" r="22" class="herbivore"/><text x="200" y="245" class="label">Deer</text>
+    <circle cx="300" cy="210" r="26" class="herbivore"/><text x="300" y="245" class="label">Bison</text>
+    <circle cx="400" cy="210" r="22" class="herbivore"/><text x="400" y="245" class="label">Gazelle</text>
+    <circle cx="500" cy="210" r="24" class="herbivore"/><text x="500" y="245" class="label">Caribou</text>
+    <circle cx="600" cy="210" r="24" class="herbivore"/><text x="600" y="245" class="label">Musk Ox</text>
+    <circle cx="700" cy="210" r="30" class="herbivore"/><text x="700" y="250" class="label">Elephant</text>
+    
+    <!-- Small/Specialist -->
+    <circle cx="850" cy="210" r="14" class="herbivore"/><text x="850" y="245" class="label">Iguana</text>
+    <circle cx="950" cy="210" r="12" class="herbivore"/><text x="950" y="245" class="label">Frog</text>
+  </g>
+  
+  <!-- LEVEL 2: SECONDARY CONSUMERS -->
+  <g id="secondary">
+    <text x="100" y="335" class="label" font-weight="bold">PREDATORS &amp; OMNIVORES</text>
+    
+    <!-- Pack Hunters -->
+    <circle cx="120" cy="360" r="20" class="predator"/><text x="120" y="395" class="label">Wolf</text>
+    <circle cx="240" cy="360" r="22" class="predator"/><text x="240" y="395" class="label">Lion</text>
+    <circle cx="360" cy="360" r="16" class="predator"/><text x="360" y="395" class="label">Arctic Fox</text>
+    <circle cx="480" cy="360" r="16" class="predator"/><text x="480" y="395" class="label">Red Fox</text>
+    
+    <!-- Ambush Hunters -->
+    <circle cx="600" cy="360" r="20" class="predator"/><text x="600" y="395" class="label">Leopard</text>
+    <circle cx="700" cy="360" r="18" class="predator"/><text x="700" y="395" class="label">Snow Leopard</text>
+    <circle cx="800" cy="360" r="16" class="predator"/><text x="800" y="395" class="label">Jackal</text>
+    
+    <!-- Omnivores -->
+    <circle cx="140" cy="440" r="22" class="omnivore"/><text x="140" y="475" class="label">Bear</text>
+    <circle cx="260" cy="440" r="18" class="omnivore"/><text x="260" y="475" class="label">Boar</text>
+    
+    <!-- Specialists -->
+    <circle cx="900" cy="360" r="14" class="predator"/><text x="900" y="395" class="label">Snake</text>
+    <circle cx="1000" cy="360" r="14" class="predator"/><text x="1000" y="395" class="label">Giant Toad</text>
+    
+    <!-- Aquatic -->
+    <circle cx="1050" cy="440" r="18" class="predator"/><text x="1050" y="475" class="label">Crocodile</text>
+    <circle cx="1000" cy="520" r="16" class="predator"/><text x="1000" y="555" class="label">Pred. Fish</text>
+  </g>
+  
+  <!-- LEVEL 3: APEX PREDATORS -->
+  <g id="apex">
+    <text x="600" y="595" class="label" font-weight="bold">APEX PREDATORS</text>
+    
+    <circle cx="400" cy="620" r="24" class="apex"/><text x="400" y="660" class="label">Polar Bear</text>
+    <circle cx="550" cy="620" r="18" class="apex"/><text x="550" y="660" class="label">Raptor</text>
+    <circle cx="700" cy="620" r="24" class="apex"/><text x="700" y="660" class="label">Shark</text>
+    <circle cx="850" cy="620" r="22" class="apex"/><text x="850" y="660" class="label">Marine Mammal</text>
+  </g>
+  
+  <!-- LEVEL 4: SCAVENGERS -->
+  <g id="scavengers">
+    <text x="200" y="595" class="label" font-weight="bold">SCAVENGERS</text>
+    <circle cx="200" cy="620" r="20" class="scavenger"/><text x="200" y="660" class="label">Scavenger</text>
+  </g>
+  
+  <!-- BIRDS (Separate Niche) -->
+  <g id="birds">
+    <text x="1100" y="185" class="label" font-weight="bold">AVIAN</text>
+    <circle cx="1050" cy="210" r="12" class="herbivore"/><text x="1050" y="245" class="label">Songbird</text>
+    <circle cx="1120" cy="210" r="14" class="herbivore"/><text x="1120" y="245" class="label">Waterfowl</text>
+    <circle cx="1100" cy="280" r="12" class="herbivore"/><text x="1100" y="315" class="label">Seabird</text>
+    <circle cx="1050" cy="280" r="12" class="herbivore"/><text x="1050" y="315" class="label">Insectivore</text>
+  </g>
+  
+  <!-- AQUATIC BASE -->
+  <g id="aquatic-base">
+    <text x="1000" y="185" class="label" font-weight="bold">AQUATIC</text>
+    <circle cx="950" cy="210" r="16" class="herbivore"/><text x="950" y="245" class="label">Fish</text>
+  </g>
+  
+  <!-- ENERGY FLOW ARROWS (Sample - major pathways) -->
+  <g id="arrows">
+    <!-- Producers to Herbivores (sample) -->
+    <path d="M 600 125 Q 550 160 500 190" class="arrow"/>
+    <path d="M 600 125 Q 520 160 400 190" class="arrow"/>
+    <path d="M 600 125 Q 580 160 300 190" class="arrow"/>
+    <path d="M 600 125 Q 640 160 700 190" class="arrow"/>
+    
+    <!-- Herbivores to Predators -->
+    <path d="M 100 228 L 120 340" class="arrow"/>
+    <path d="M 200 232 L 120 340" class="arrow"/>
+    <path d="M 200 232 L 140 420" class="arrow"/>
+    <path d="M 300 236 L 240 340" class="arrow"/>
+    <path d="M 400 232 L 240 340" class="arrow"/>
+    <path d="M 400 232 L 600 340" class="arrow"/>
+    <path d="M 500 234 L 120 340" class="arrow"/>
+    <path d="M 500 234 L 700 340" class="arrow"/>
+    <path d="M 600 234 L 700 340" class="arrow"/>
+    <path d="M 700 240 L 240 340" class="arrow"/>
+    <path d="M 850 224 L 900 340" class="arrow"/>
+    <path d="M 950 222 L 900 340" class="arrow"/>
+    <path d="M 950 222 L 1000 340" class="arrow"/>
+    
+    <!-- Aquatic chains -->
+    <path d="M 950 226 L 1000 502" class="arrow"/>
+    <path d="M 1120 224 L 1050 422" class="arrow"/>
+    
+    <!-- Predators to Apex -->
+    <path d="M 120 380 L 140 420" class="arrow"/>
+    <path d="M 360 376 L 400 600" class="arrow"/>
+    <path d="M 1000 536 L 700 600" class="arrow"/>
+    <path d="M 950 226 L 700 600" class="arrow"/>
+    <path d="M 950 226 L 850 600" class="arrow"/>
+    
+    <!-- Birds to Raptor -->
+    <path d="M 1050 222 L 550 600" class="arrow"/>
+    <path d="M 100 228 L 550 600" class="arrow"/>
+    
+    <!-- To Scavengers (all die) -->
+    <path d="M 300 236 L 200 600" class="arrow" stroke-dasharray="3,3"/>
+    <path d="M 120 380 L 200 600" class="arrow" stroke-dasharray="3,3"/>
+    <path d="M 400 644 L 200 640" class="arrow" stroke-dasharray="3,3"/>
+  </g>
+  
+  <!-- Legend -->
+  <g id="legend" transform="translate(20, 700)">
+    <text x="0" y="0" class="label" font-weight="bold">LEGEND:</text>
+    <circle cx="60" cy="-3" r="8" class="producer"/><text x="75" y="0" class="label" text-anchor="start">Producers</text>
+    <circle cx="160" cy="-3" r="8" class="herbivore"/><text x="175" y="0" class="label" text-anchor="start">Herbivores</text>
+    <circle cx="270" cy="-3" r="8" class="predator"/><text x="285" y="0" class="label" text-anchor="start">Predators</text>
+    <circle cx="370" cy="-3" r="8" class="omnivore"/><text x="385" y="0" class="label" text-anchor="start">Omnivores</text>
+    <circle cx="470" cy="-3" r="8" class="apex"/><text x="485" y="0" class="label" text-anchor="start">Apex</text>
+    <circle cx="540" cy="-3" r="8" class="scavenger"/><text x="555" y="0" class="label" text-anchor="start">Scavengers</text>
+    <line x1="650" y1="-3" x2="680" y2="-3" class="arrow"/><text x="690" y="0" class="label" text-anchor="start">Energy Flow</text>
+    <line x1="780" y1="-3" x2="810" y2="-3" class="arrow" stroke-dasharray="3,3"/><text x="820" y="0" class="label" text-anchor="start">To Decomposers</text>
+  </g>
+  
+  <!-- Notes -->
+  <text x="600" y="750" class="label" font-style="italic">
+    Circle size ≈ relative biomass • Arrow direction = energy transfer (10% efficiency per level)
+  </text>
+  <text x="600" y="770" class="label" font-style="italic">
+    Dotted lines = carrion/scavenger pathway • All dead organisms feed scavengers
+  </text>
+</svg>

@@ -123,12 +123,12 @@ class InsectSystem:
         elif climate_engine.season == 1: # Summer
             season_mod = 1.5
             
-        growth = 0.2 * temp_factor * moist_factor * veg_factor * season_mod
+        growth = 0.3 * temp_factor * moist_factor * veg_factor * season_mod
         
         self.density += growth
             
         # Natural decay / carrying capacity
-        self.density *= 0.9
+        self.density *= 0.95
         self.density = np.clip(self.density, 0, 1.0)
         
     def consume(self, x, y, amount):

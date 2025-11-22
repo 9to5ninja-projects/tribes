@@ -86,14 +86,14 @@ HERBIVORE_STATS = {
         'environment': EnvironmentalStats(
             max_age=60  # ~15 years
         ),
-        'food_value': 15,  # HP restored when eaten
-        'reproduction_threshold': 20,  # HP needed to breed
+        'food_value': 10,  # Reduced from 15
+        'reproduction_threshold': 15,  # Reduced from 20
         'offspring_count': 2
     },
     'bison': {
         'stats': CombatStats(
             max_hp=50, current_hp=50,
-            attack=18,  # Can fight back
+            attack=20,  # Buffed from 18
             defense=8,
             speed=5,    # Slow
             evasion=5
@@ -108,8 +108,8 @@ HERBIVORE_STATS = {
         'environment': EnvironmentalStats(
             max_age=80  # ~20 years
         ),
-        'food_value': 30,
-        'reproduction_threshold': 30,
+        'food_value': 20,  # Reduced from 30
+        'reproduction_threshold': 25,  # Reduced from 30
         'offspring_count': 1
     },
     'caribou': {
@@ -140,7 +140,7 @@ HERBIVORE_STATS = {
         'stats': CombatStats(
             max_hp=80, current_hp=80,
             attack=20,
-            defense=15,
+            defense=18,  # Buffed from 15
             speed=4,
             evasion=0
         ),
@@ -157,8 +157,8 @@ HERBIVORE_STATS = {
             min_temp=0.0,
             max_temp=0.6  # Overheats easily
         ),
-        'food_value': 40,
-        'reproduction_threshold': 40,
+        'food_value': 18,  # Reduced from 40
+        'reproduction_threshold': 30,  # Reduced from 40
         'offspring_count': 1
     },
     'gazelle': {
@@ -180,14 +180,14 @@ HERBIVORE_STATS = {
             max_age=50,
             min_temp=0.4  # Needs warmth
         ),
-        'food_value': 12,
-        'reproduction_threshold': 15,
+        'food_value': 8,  # Reduced from 12
+        'reproduction_threshold': 12,  # Reduced from 15
         'offspring_count': 2
     },
     'elephant': {
         'stats': CombatStats(
             max_hp=100, current_hp=100,
-            attack=25,  # Dangerous when threatened
+            attack=30,  # Buffed from 25
             defense=15,
             speed=4,
             evasion=0   # Too big to dodge
@@ -203,8 +203,8 @@ HERBIVORE_STATS = {
             max_age=240, # ~60 years (long lived)
             min_temp=0.4
         ),
-        'food_value': 50,
-        'reproduction_threshold': 60,
+        'food_value': 40,  # Reduced from 50
+        'reproduction_threshold': 50,  # Reduced from 60
         'offspring_count': 1
     },
     'rabbit': {
@@ -213,20 +213,21 @@ HERBIVORE_STATS = {
             attack=1,
             defense=1,
             speed=9,
-            evasion=40  # Very hard to hit
+            evasion=45  # Very hard to hit (Buffed from 40)
         ),
         'movement': MovementStats(
             movement_range=3,
             terrain_preferences={
-                5: 1.0, 7: 1.0, 4: 1.0, 3: 0.8, 8: 0.8  # Almost everywhere
+                5: 1.0, 7: 1.0, 4: 1.0, 3: 0.8, 8: 0.8, 9: 0.9, 10: 0.6  # Increased Tundra(9) for Arctic Fox food source
             }
         ),
         'environment': EnvironmentalStats(
             max_age=20  # ~5 years (short lived)
         ),
-        'food_value': 8,
-        'reproduction_threshold': 6,
-        'offspring_count': 4
+        'food_value': 4,  # Reduced from 8 to match ecological data
+        'reproduction_threshold': 8,  # Reduced from 15 (Fix: must be < max_hp)
+        'offspring_count': 3,  # Reduced from 6 to prevent overpopulation/starvation
+        'metabolism_multiplier': 0.5  # Reduced metabolism
     },
     'iguana': {
         'stats': CombatStats(
@@ -247,10 +248,10 @@ HERBIVORE_STATS = {
         'environment': EnvironmentalStats(
             max_age=80,
             cold_blooded=True,
-            min_temp=0.6  # Needs heat
+            min_temp=0.3  # Reduced from 0.6 to prevent freezing
         ),
-        'food_value': 10,
-        'reproduction_threshold': 10,
+        'food_value': 3,
+        'reproduction_threshold': 8,
         'offspring_count': 3
     },
     'frog': {
@@ -265,7 +266,7 @@ HERBIVORE_STATS = {
             movement_range=2,
             terrain_preferences={
                 6: 1.0,  # Rainforest
-                12: 1.0, # Swamp (if exists, else use Forest/River logic)
+                12: 1.0, # Swamp
                 7: 0.8   # Forest
             },
             can_swim=True
@@ -273,11 +274,12 @@ HERBIVORE_STATS = {
         'environment': EnvironmentalStats(
             max_age=15,
             cold_blooded=True,
-            min_temp=0.4
+            min_temp=0.1  # Reduced from 0.4 to prevent freezing
         ),
-        'food_value': 4,
-        'reproduction_threshold': 4,
-        'offspring_count': 6
+        'food_value': 1,
+        'reproduction_threshold': 4,  # Increased from 3
+        'offspring_count': 3,  # Reduced from 6
+        'metabolism_multiplier': 0.2  # Drastically reduced metabolism
     }
 }
 
@@ -287,7 +289,7 @@ PREDATOR_STATS = {
     'wolf': {
         'stats': CombatStats(
             max_hp=40, current_hp=40,
-            attack=15,
+            attack=18,  # Buffed from 15
             defense=5,
             speed=9,
             evasion=10,
@@ -303,14 +305,14 @@ PREDATOR_STATS = {
             max_age=60
         ),
         'pack_bonus': 3,  # +3 ATK per ally
-        'preferred_prey': ['deer', 'caribou', 'bison'],
+        'preferred_prey': ['deer', 'caribou', 'bison', 'rabbit'],
         'reproduction_threshold': 25,
         'offspring_count': 3
     },
     'lion': {
         'stats': CombatStats(
             max_hp=60, current_hp=60,
-            attack=20,
+            attack=25,  # Buffed from 20
             defense=7,
             speed=8,
             evasion=8,
@@ -334,7 +336,7 @@ PREDATOR_STATS = {
     'bear': {
         'stats': CombatStats(
             max_hp=70, current_hp=70,
-            attack=18,
+            attack=22,  # Buffed from 18
             defense=10,
             speed=5,
             evasion=5,
@@ -350,7 +352,7 @@ PREDATOR_STATS = {
             max_age=100
         ),
         'pack_bonus': 0,  # Solitary
-        'preferred_prey': ['deer', 'caribou'],
+        'preferred_prey': ['deer', 'caribou', 'rabbit'],
         'can_eat_vegetation': True,
         'vegetation_heal': 5,  # HP per turn from vegetation
         'reproduction_threshold': 40,
@@ -359,7 +361,7 @@ PREDATOR_STATS = {
     'polar_bear': {
         'stats': CombatStats(
             max_hp=80, current_hp=80,
-            attack=22,
+            attack=28,  # Buffed from 22
             defense=12,
             speed=5,
             evasion=5,
@@ -386,7 +388,7 @@ PREDATOR_STATS = {
     'leopard': {
         'stats': CombatStats(
             max_hp=45, current_hp=45,
-            attack=17,
+            attack=20,  # Buffed from 17
             defense=4,
             speed=10,
             evasion=20,  # Agile
@@ -404,14 +406,14 @@ PREDATOR_STATS = {
         ),
         'pack_bonus': 0,
         'ambush_bonus': 5,  # Extra damage when attacking from cover
-        'preferred_prey': ['gazelle', 'deer'],
+        'preferred_prey': ['gazelle', 'deer', 'rabbit'],
         'reproduction_threshold': 28,
         'offspring_count': 2
     },
     'snow_leopard': {
         'stats': CombatStats(
             max_hp=45, current_hp=45,
-            attack=18,
+            attack=20,  # Buffed from 18
             defense=5,
             speed=9,
             evasion=25,
@@ -432,14 +434,14 @@ PREDATOR_STATS = {
         ),
         'pack_bonus': 0,
         'ambush_bonus': 5,
-        'preferred_prey': ['musk_ox', 'caribou'],
+        'preferred_prey': ['musk_ox', 'caribou', 'rabbit'],
         'reproduction_threshold': 28,
         'offspring_count': 2
     },
     'arctic_fox': {
         'stats': CombatStats(
             max_hp=20, current_hp=20,
-            attack=8,
+            attack=10,  # Buffed from 8
             defense=3,
             speed=9,
             evasion=25,
@@ -448,7 +450,8 @@ PREDATOR_STATS = {
         'movement': MovementStats(
             movement_range=3,
             terrain_preferences={
-                9: 1.0, 10: 1.0
+                9: 1.0,  # Tundra - optimal
+                10: 1.0, # Snow - optimal
             }
         ),
         'environment': EnvironmentalStats(
@@ -456,14 +459,15 @@ PREDATOR_STATS = {
             min_temp=0.0
         ),
         'pack_bonus': 0,
-        'preferred_prey': ['caribou'],  # Opportunistic
+        'preferred_prey': ['rabbit', 'carrion'],  # Added rabbit
         'reproduction_threshold': 12,
-        'offspring_count': 4
+        'offspring_count': 4,
+        'metabolism_multiplier': 0.4
     },
     'red_fox': {
         'stats': CombatStats(
             max_hp=22, current_hp=22,
-            attack=9,
+            attack=10,  # Buffed from 9
             defense=3,
             speed=9,
             evasion=25,
@@ -479,14 +483,14 @@ PREDATOR_STATS = {
             max_age=30
         ),
         'pack_bonus': 0,
-        'preferred_prey': ['rabbit', 'deer'],  # Hunts small prey
+        'preferred_prey': ['rabbit', 'frog'],  # Hunts small prey
         'reproduction_threshold': 14,
         'offspring_count': 3
     },
     'boar': {
         'stats': CombatStats(
             max_hp=45, current_hp=45,
-            attack=14,
+            attack=16,  # Buffed from 14
             defense=6,
             speed=6,
             evasion=5,
@@ -502,7 +506,7 @@ PREDATOR_STATS = {
             max_age=80
         ),
         'pack_bonus': 0,
-        'preferred_prey': ['deer'],  # Opportunistic
+        'preferred_prey': ['rabbit'],  # Opportunistic
         'can_eat_vegetation': True,  # Omnivore
         'vegetation_heal': 8,
         'reproduction_threshold': 30,
@@ -511,7 +515,7 @@ PREDATOR_STATS = {
     'jackal': {
         'stats': CombatStats(
             max_hp=25, current_hp=25,
-            attack=10,
+            attack=12,  # Buffed from 10
             defense=3,
             speed=9,
             evasion=20,
@@ -528,14 +532,15 @@ PREDATOR_STATS = {
             min_temp=0.4
         ),
         'pack_bonus': 2,  # Small packs
-        'preferred_prey': ['gazelle', 'rabbit'],
+        'preferred_prey': ['rabbit', 'gazelle', 'carrion'],
         'reproduction_threshold': 15,
-        'offspring_count': 3
+        'offspring_count': 3,
+        'metabolism_multiplier': 0.5
     },
     'crocodile': {
         'stats': CombatStats(
             max_hp=70, current_hp=70,
-            attack=25,
+            attack=28,  # Buffed from 25
             defense=10,
             speed=4,
             evasion=5,
@@ -551,7 +556,7 @@ PREDATOR_STATS = {
         'environment': EnvironmentalStats(
             max_age=200, # Long lived
             cold_blooded=True,
-            min_temp=0.5
+            min_temp=0.3  # Reduced from 0.5
         ),
         'pack_bonus': 0,
         'ambush_bonus': 10,
@@ -562,7 +567,7 @@ PREDATOR_STATS = {
     'snake': {
         'stats': CombatStats(
             max_hp=20, current_hp=20,
-            attack=15, # Venomous/Strong bite
+            attack=18, # Venomous/Strong bite (Buffed from 15)
             defense=2,
             speed=6,
             evasion=30,
@@ -577,18 +582,19 @@ PREDATOR_STATS = {
         'environment': EnvironmentalStats(
             max_age=40,
             cold_blooded=True,
-            min_temp=0.5
+            min_temp=0.2  # Reduced from 0.5
         ),
         'pack_bonus': 0,
         'ambush_bonus': 8,
-        'preferred_prey': ['rabbit', 'frog'],
+        'preferred_prey': ['rabbit', 'frog', 'iguana'],
         'reproduction_threshold': 12,
-        'offspring_count': 5
+        'offspring_count': 3,  # Reduced from 5
+        'metabolism_multiplier': 0.3
     },
     'giant_toad': {
         'stats': CombatStats(
             max_hp=15, current_hp=15,
-            attack=5,
+            attack=8,  # Buffed from 5
             defense=2,
             speed=4,
             evasion=10,
@@ -604,12 +610,13 @@ PREDATOR_STATS = {
         'environment': EnvironmentalStats(
             max_age=30,
             cold_blooded=True,
-            min_temp=0.4
+            min_temp=0.1  # Reduced from 0.4
         ),
         'pack_bonus': 0,
-        'preferred_prey': ['frog', 'rabbit'], # Eats smaller things
-        'reproduction_threshold': 10,
-        'offspring_count': 8
+        'preferred_prey': ['frog', 'insects'],
+        'reproduction_threshold': 8,
+        'offspring_count': 4,  # Reduced from 8
+        'metabolism_multiplier': 0.3
     }
 }
 
@@ -680,7 +687,7 @@ TERRAIN_MODIFIERS = {
 
 # === VEGETATION AS RESOURCE ===
 VEGETATION_STATS = {
-    'food_value': 8,  # HP restored per vegetation unit consumed
+    'food_value': 15,  # HP restored per vegetation unit consumed (Buffed from 8)
     'regrowth_per_turn': 0.05,  # How fast it recovers
     'max_density': 1.0
 }

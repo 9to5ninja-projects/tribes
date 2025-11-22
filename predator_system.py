@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from srpg_stats import create_stats_from_template, PREDATOR_STATS
 from srpg_combat import CombatResolver
+from balance_config import PREDATOR_CONFIG
 import uuid
 
 class Predator:
@@ -78,10 +79,11 @@ class PredatorSpecies:
 
 
 class PredatorSystem:
-    def __init__(self, world_generator, vegetation_system, animal_system):
+    def __init__(self, world_generator, vegetation_system, animal_system, ecology_system=None):
         self.world = world_generator
         self.vegetation = vegetation_system
         self.herbivores = animal_system  # Reference to herbivore system
+        self.ecology = ecology_system
         self.width = world_generator.width
         self.height = world_generator.height
         self.combat_resolver = CombatResolver(world_generator)
@@ -176,7 +178,14 @@ class PredatorSystem:
             predator.age += 1
             
             # Metabolism cost
-            metabolism_cost = 1
+            base_cost = 1
+            multiplier = PREDATOR_CONFIG.get('metabolism_multiplier', 1.0)
+            
+            # Apply multiplier (probabilistic for fractional values)
+            cost_float = base_cost * multiplier
+            metabolism_cost = int(cost_float)
+            if np.random.random() < (cost_float - metabolism_cost):
+                metabolism_cost += 1
             
             # Mortality check (Old Age)
             if predator.env_stats and predator.age > predator.env_stats.max_age:
@@ -257,6 +266,9 @@ class PredatorSystem:
                 kill_made = self._attempt_hunt(predator, species_data, tribe_units)
                 if kill_made:
                     kills_this_turn[predator.species] += 1
+                else:
+                    # Try scavenging if hunt failed or no prey found
+                    self._attempt_scavenge(predator, species_data)
             
             # 3. Reproduce
             if predator.can_reproduce():
@@ -690,13 +702,52 @@ class PredatorSystem:
             # Check if location is suitable
             if biome in preferred_biomes:
                 predator = Predator(x, y, species_name)
-                # Migrants are usually healthy
+                # Migrants are usually
                 predator.combat_stats.current_hp = int(predator.combat_stats.max_hp * 0.9)
                 self.predators.append(predator)
                 spawned += 1
         
         if spawned > 0:
-            print(f"  🐺 {spawned} {species_name} migrated into the area")
+            print(f"  Spawned {spawned} {species_name} migrated into the area")
+
+    def _attempt_scavenge(self, predator, species_data):
+        """Attempt to find small prey or carrion if in diet"""
+        diet = species_data.get('preferred_prey', [])
+        
+        can_scavenge = 'carrion' in diet or 'insects' in diet
+        if not can_scavenge:
+            return
+
+        # Try eating insects if in diet and system is available
+        if 'insects' in diet and self.ecology and self.ecology.insects:
+            consumed = self.ecology.insects.consume(predator.x, predator.y, amount=0.15)
+            if consumed > 0:
+                predator.gain_energy(consumed * 1.0)
+                return
+
+        # Success chance for other scavenging
+        success_chance = 0.3
+        
+        # Biome modifiers
+        biome = self.world.biomes[predator.y, predator.x]
+        
+        if 'insects' in diet and not (self.ecology and self.ecology.insects):
+            # Fallback if no insect system
+            # Insects are common in warm biomes (Rainforest, Swamp, Savanna)
+            if biome in [4, 6, 12]:
+                success_chance += 0.4
+            elif biome in [3, 5, 7]:
+                success_chance += 0.2
+            elif biome in [10, 9]: # Snow/Tundra
+                success_chance -= 0.2
+        
+        if 'carrion' in diet:
+            # Carrion is random
+            success_chance += 0.1
+        
+        if np.random.random() < success_chance:
+            # Found something small
+            predator.gain_energy(0.15) # Small snack
 
 
 # Full ecosystem simulation

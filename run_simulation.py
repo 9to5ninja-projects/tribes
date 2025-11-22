@@ -39,6 +39,7 @@ def run_single_simulation(turns=100, seed=None):
             'duration': duration,
             'final_turn': game.turn,
             'populations': stats['populations'],
+            'events': stats.get('events', {}),
             'extinctions': game.statistics['extinctions'],
             'death_causes': stats['death_causes'],
             'food_chain': stats['food_chain'],
@@ -122,6 +123,20 @@ def analyze_results(results):
     sorted_deaths = sorted(death_causes.items(), key=lambda x: x[1], reverse=True)
     for k, v in sorted_deaths[:15]:
         print(f"  {k}: {v}")
+
+    # 4. Ecosystem & Events
+    print("\nEcosystem & Events (Avg per sim):")
+    avg_insects = np.mean([r['populations'].get('insects', 0) for r in results])
+    print(f"  Avg Insect Density (Total): {avg_insects:.1f}")
+    
+    avg_disease_deaths = np.mean([r.get('events', {}).get('disease_deaths', 0) for r in results])
+    print(f"  Avg Disease Deaths: {avg_disease_deaths:.1f}")
+    
+    avg_disaster_deaths = np.mean([r.get('events', {}).get('disaster_deaths', 0) for r in results])
+    print(f"  Avg Disaster Deaths: {avg_disaster_deaths:.1f}")
+    
+    avg_disasters = np.mean([r.get('events', {}).get('active_disasters', 0) for r in results]) # This is active at end, maybe not total.
+    # But we can show it.
 
 if __name__ == "__main__":
     # Run a batch
