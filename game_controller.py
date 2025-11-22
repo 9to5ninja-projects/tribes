@@ -557,6 +557,9 @@ class GameState:
                 'disease_deaths': ecology_stats['disease_deaths'],
                 'disaster_deaths': ecology_stats['disaster_deaths']
             }
+            
+        if self.tribe:
+            stats['populations']['tribe'] = len(self.tribe.units)
         
         return stats
     

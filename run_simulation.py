@@ -126,17 +126,32 @@ def analyze_results(results):
 
     # 4. Ecosystem & Events
     print("\nEcosystem & Events (Avg per sim):")
+    
+    # Other Populations
+    avg_scavengers = np.mean([r['populations'].get('scavengers', 0) for r in results])
+    print(f"  Avg Scavengers: {avg_scavengers:.1f}")
+    
+    avg_avian = np.mean([r['populations'].get('avian', 0) for r in results])
+    print(f"  Avg Avian (Birds): {avg_avian:.1f}")
+    
+    avg_aquatic = np.mean([r['populations'].get('aquatic', 0) for r in results])
+    print(f"  Avg Aquatic (Fish/Marine): {avg_aquatic:.1f}")
+    
+    avg_tribe = np.mean([r['populations'].get('tribe', 0) for r in results])
+    print(f"  Avg Tribe Population: {avg_tribe:.1f}")
+    
     avg_insects = np.mean([r['populations'].get('insects', 0) for r in results])
     print(f"  Avg Insect Density (Total): {avg_insects:.1f}")
     
+    # Events
     avg_disease_deaths = np.mean([r.get('events', {}).get('disease_deaths', 0) for r in results])
     print(f"  Avg Disease Deaths: {avg_disease_deaths:.1f}")
     
     avg_disaster_deaths = np.mean([r.get('events', {}).get('disaster_deaths', 0) for r in results])
     print(f"  Avg Disaster Deaths: {avg_disaster_deaths:.1f}")
     
-    avg_disasters = np.mean([r.get('events', {}).get('active_disasters', 0) for r in results]) # This is active at end, maybe not total.
-    # But we can show it.
+    avg_disasters = np.mean([r.get('events', {}).get('active_disasters', 0) for r in results]) 
+    print(f"  Avg Active Disasters (End): {avg_disasters:.1f}")
 
 if __name__ == "__main__":
     # Run a batch

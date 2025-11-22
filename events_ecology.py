@@ -305,7 +305,7 @@ class EventsEcologySystem:
         
         # Add new carrion from recent deaths
         # (In a real implementation, we'd track individual deaths, but we'll simulate)
-        death_chance = 0.05  # Increased chance of finding carrion each turn
+        death_chance = 0.15  # Increased chance of finding carrion each turn (was 0.05)
         for _ in range(int(death_chance * 100)):
             x = np.random.randint(0, self.width)
             y = np.random.randint(0, self.height)
