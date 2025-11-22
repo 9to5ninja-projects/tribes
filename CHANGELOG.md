@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0] - 2025-11-22
+### Added
+- **Nomad System**:
+  - Introduced AI-controlled **Nomad Bands** that roam the world.
+  - Nomads hunt animals for food, have health/energy stats, and can starve or reproduce.
+  - Integrated Nomads into the save/load system and simulation reporting.
+- **Realistic Insect Ecology**:
+  - Scaled insect population tracking to realistic numbers (Trillions globally).
+  - Updated consumption logic for insectivores (Frogs, Birds, Fish) to use raw insect counts.
+  - Pre-populated insect density to prevent early-game starvation of insectivores.
+
+### Changed
+- **Simulation Reporting**:
+  - Added **Nomad Population** tracking to `run_simulation.py`.
+  - Updated Insect reporting to show total count (Trillions) instead of density index.
+
 ## [0.19.0] - 2025-11-22
 ### Added
 - **Ecosystem Connectivity**:
@@ -269,3 +285,16 @@ All notable changes to this project will be documented in this file.
   - Temperature and moisture maps
   - Biome derivation based on environmental factors
   - Visualization using matplotlib
+
+## [0.20.1] - 2025-11-22
+### Changed
+- **Performance Optimization**:
+  - **Spatial Scanning**: Reduced predator detection range (12->7) and nomad scan radius (8->6) to significantly improve turn processing speed.
+  - **Logging**: Disabled verbose console logging for combat events to reduce I/O latency.
+
+## [0.20.2] - 2025-11-22
+### Added
+- **Frontend Visualization**:
+  - **Nomad Graph**: Added "Nomads" to the Human Population graph in the Statistics Panel.
+  - **Map Icons**: Replaced simple colored shapes with emoji icons for all entities (Tribe units, Nomads, Animals, Structures) for better visual distinction.
+  - **Health Bars**: Restored health bars for all units on the map.

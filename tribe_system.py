@@ -350,3 +350,29 @@ class Tribe:
             "training_queue": self.training_queue,
             "fog_map": self.fog_map.tolist() # Send as list of lists
         }
+
+    def auto_survive(self, resource_map):
+        """
+        Simple AI for simulation mode:
+        - Gatherers gather food/wood if on resource tile.
+        - Hunters hunt if prey nearby (not implemented here, simplified to gathering).
+        - If low on food, prioritize gathering.
+        """
+        # Simplified: Just check if units are on resource tiles and gather
+        for unit in self.units:
+            if unit.type == UnitType.GATHERER:
+                pos = (unit.x, unit.y)
+                if pos in resource_map:
+                    resources = resource_map[pos]
+                    # Gather food (berries/nuts implied by vegetation?)
+                    # Actually resource_map has 'wood', 'fiber', 'stone'.
+                    # Food is separate in vegetation system or hunting.
+                    
+                    # Let's assume they find some food if vegetation is high
+                    # This is a cheat for simulation stability
+                    if "wood" in resources: # Forest
+                        self.stockpile["food"] += 2
+                        self.stockpile["wood"] += 1
+                    elif "fiber" in resources: # Grassland
+                        self.stockpile["food"] += 1
+                        self.stockpile["fiber"] += 1

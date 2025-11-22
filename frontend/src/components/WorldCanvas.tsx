@@ -142,87 +142,105 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
             ctx.fillRect(xPos + 1, yPos + 1, (barWidth - 2) * pct, barHeight - 2);
         };
 
+        // Helper to draw emoji icon
+        const drawIcon = (x: number, y: number, icon: string, color: string = '#fff') => {
+            const pos = toScreen(x, y);
+            const centerX = pos.x + tileSize / 2;
+            const centerY = pos.y + tileSize / 2;
+            
+            ctx.font = `${tileSize * 0.8}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Shadow for visibility
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillText(icon, centerX + 1, centerY + 1);
+            
+            ctx.fillStyle = color;
+            ctx.fillText(icon, centerX, centerY);
+        };
+
         // Draw entities
         if (entities) {
-            // Herbivores (Green/Brown circles)
+            // Herbivores
             if (entities.herbivores) {
-                ctx.fillStyle = '#795548';
                 entities.herbivores.forEach(e => {
                     if (!isInView(e.x, e.y)) return;
                     const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
                     if (!isRevealed) return;
 
+                    let icon = '🦌';
+                    if (e.species.includes('rabbit')) icon = '🐇';
+                    else if (e.species.includes('boar')) icon = '🐗';
+                    else if (e.species.includes('elephant')) icon = '🐘';
+                    
+                    drawIcon(e.x, e.y, icon);
                     const pos = toScreen(e.x, e.y);
-                    ctx.beginPath();
-                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/3, 0, Math.PI * 2);
-                    ctx.fill();
-
                     drawHealthBar(pos.x, pos.y, e.hp, e.max_hp);
                 });
             }
 
-            // Predators (Red circles)
+            // Predators
             if (entities.predators) {
-                ctx.fillStyle = '#d32f2f';
                 entities.predators.forEach(e => {
                     if (!isInView(e.x, e.y)) return;
                     const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
                     if (!isRevealed) return;
 
+                    let icon = '🐅';
+                    if (e.species.includes('wolf')) icon = '🐺';
+                    else if (e.species.includes('bear')) icon = '🐻';
+                    else if (e.species.includes('snake')) icon = '🐍';
+                    
+                    drawIcon(e.x, e.y, icon);
                     const pos = toScreen(e.x, e.y);
-                    ctx.beginPath();
-                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/3, 0, Math.PI * 2);
-                    ctx.fill();
-
                     drawHealthBar(pos.x, pos.y, e.hp, e.max_hp);
                 });
             }
 
-            // Avian (Yellow/White stars/circles)
+            // Avian
             if (entities.avian) {
                 entities.avian.forEach(e => {
                     if (!isInView(e.x, e.y)) return;
                     const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
                     if (!isRevealed) return;
 
-                    const pos = toScreen(e.x, e.y);
-                    ctx.fillStyle = '#ffeb3b'; // Yellow
-                    ctx.beginPath();
-                    // Draw a small triangle or star-like shape
-                    ctx.moveTo(pos.x + tileSize/2, pos.y + tileSize/4);
-                    ctx.lineTo(pos.x + tileSize*0.7, pos.y + tileSize*0.7);
-                    ctx.lineTo(pos.x + tileSize*0.3, pos.y + tileSize*0.7);
-                    ctx.fill();
+                    drawIcon(e.x, e.y, '🦅');
                 });
             }
 
-            // Aquatic (Cyan circles)
+            // Aquatic
             if (entities.aquatic) {
-                ctx.fillStyle = '#00bcd4';
                 entities.aquatic.forEach(e => {
                     if (!isInView(e.x, e.y)) return;
                     const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
                     if (!isRevealed) return;
 
-                    const pos = toScreen(e.x, e.y);
-                    ctx.beginPath();
-                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/4, 0, Math.PI * 2);
-                    ctx.fill();
+                    drawIcon(e.x, e.y, '🐟');
                 });
             }
 
-            // Scavengers (Grey/Brown small circles)
+            // Scavengers
             if (entities.scavengers) {
-                ctx.fillStyle = '#5d4037';
                 entities.scavengers.forEach(e => {
                     if (!isInView(e.x, e.y)) return;
                     const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
                     if (!isRevealed) return;
 
+                    drawIcon(e.x, e.y, '🐀');
+                });
+            }
+
+            // Nomads
+            if (entities.nomads) {
+                entities.nomads.forEach(e => {
+                    if (!isInView(e.x, e.y)) return;
+                    const isRevealed = tribeData?.fog_map && tribeData.fog_map[e.y] ? tribeData.fog_map[e.y][e.x] : true;
+                    if (!isRevealed) return;
+
+                    drawIcon(e.x, e.y, '🏹'); // Bow and arrow for nomads
                     const pos = toScreen(e.x, e.y);
-                    ctx.beginPath();
-                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/4, 0, Math.PI * 2);
-                    ctx.fill();
+                    drawHealthBar(pos.x, pos.y, e.hp, e.max_hp);
                 });
             }
         }
@@ -240,9 +258,7 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                 const isUnderConstruction = !(structure as any).is_complete;
                 
                 if (isUnderConstruction) {
-                    // Draw scaffolding / construction site
-                    ctx.fillStyle = 'rgba(139, 69, 19, 0.5)'; // Transparent brown
-                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
+                    drawIcon(structure.x, structure.y, '🏗️');
                     
                     // Draw progress bar
                     const progress = 1 - ((structure as any).construction_turns_left / (structure as any).max_construction_turns);
@@ -251,44 +267,21 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                     ctx.fillStyle = '#00e676'; // Green
                     ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize*0.8, (tileSize/2) * progress, tileSize/10);
                     
-                    return; // Skip drawing the full structure
+                    return; 
                 }
                 
-                // Draw Bonfire (Orange Square)
                 if (structure.type === 'bonfire') {
-                    ctx.fillStyle = '#ff6d00';
-                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
-                    
-                    // Flicker effect
-                    if (Math.random() > 0.5) {
-                        ctx.fillStyle = '#ffab40';
-                        ctx.fillRect(pos.x + tileSize/3, pos.y + tileSize/3, tileSize/3, tileSize/3);
-                    }
+                    drawIcon(structure.x, structure.y, '🔥');
                 } else if (structure.type === 'hut') {
-                    ctx.fillStyle = '#8d6e63'; // Brown
-                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
-                    // Roof
-                    ctx.fillStyle = '#5d4037';
-                    ctx.beginPath();
-                    ctx.moveTo(pos.x + tileSize/4, pos.y + tileSize/4);
-                    ctx.lineTo(pos.x + tileSize/2, pos.y + tileSize/8);
-                    ctx.lineTo(pos.x + tileSize*0.75, pos.y + tileSize/4);
-                    ctx.fill();
+                    drawIcon(structure.x, structure.y, '🛖');
                 } else if (structure.type === 'research_weapon') {
-                    ctx.fillStyle = '#607d8b'; // Blue Grey
-                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
-                    ctx.fillStyle = '#d32f2f'; // Red mark
-                    ctx.fillRect(pos.x + tileSize/2 - tileSize/8, pos.y + tileSize/2 - tileSize/8, tileSize/4, tileSize/4);
+                    drawIcon(structure.x, structure.y, '⚔️');
                 } else if (structure.type === 'research_armor') {
-                    ctx.fillStyle = '#607d8b'; // Blue Grey
-                    ctx.fillRect(pos.x + tileSize/4, pos.y + tileSize/4, tileSize/2, tileSize/2);
-                    ctx.fillStyle = '#1976d2'; // Blue mark
-                    ctx.fillRect(pos.x + tileSize/2 - tileSize/8, pos.y + tileSize/2 - tileSize/8, tileSize/4, tileSize/4);
+                    drawIcon(structure.x, structure.y, '🛡️');
                 } else if (structure.type === 'idol') {
-                    ctx.fillStyle = '#ffd700'; // Gold
-                    ctx.beginPath();
-                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/4, 0, Math.PI * 2);
-                    ctx.fill();
+                    drawIcon(structure.x, structure.y, '🗿');
+                } else if (structure.type === 'workshop') {
+                    drawIcon(structure.x, structure.y, '🔨');
                 }
             });
         }
@@ -302,18 +295,15 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                 
                 // Selection highlight
                 if (unit.id === selectedUnitId) {
-                    ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
                     ctx.beginPath();
-                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize, 0, Math.PI * 2);
+                    ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/1.5, 0, Math.PI * 2);
                     ctx.fill();
                     
                     // Draw movement range (Diamond shape) - Only if hasn't moved
                     if (!unit.has_moved) {
-                        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
-                        ctx.lineWidth = 2;
-                        const range = unit.movement_range || 2;
-                        
                         ctx.fillStyle = 'rgba(255, 255, 0, 0.1)';
+                        const range = unit.movement_range || 2;
                         for (let dy = -range; dy <= range; dy++) {
                             for (let dx = -range; dx <= range; dx++) {
                                 if (Math.abs(dx) + Math.abs(dy) <= range) {
@@ -327,43 +317,15 @@ export const WorldCanvas: React.FC<WorldCanvasProps> = ({ worldData, entities, t
                             }
                         }
                     }
-
-                    // Draw Attack Range (Red) - Only if hasn't acted and is Hunter
-                    if (!unit.has_acted && unit.type === 'hunter') {
-                        const attackRange = 2;
-                        ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; // Red tint
-                        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-                        
-                        for (let dy = -attackRange; dy <= attackRange; dy++) {
-                            for (let dx = -attackRange; dx <= attackRange; dx++) {
-                                if (Math.abs(dx) + Math.abs(dy) <= attackRange) {
-                                    const tx = unit.x + dx;
-                                    const ty = unit.y + dy;
-                                    // Don't draw over the unit itself
-                                    if (tx === unit.x && ty === unit.y) continue;
-                                    
-                                    if (isInView(tx, ty)) {
-                                        const tPos = toScreen(tx, ty);
-                                        ctx.fillRect(tPos.x, tPos.y, tileSize, tileSize);
-                                        ctx.strokeRect(tPos.x, tPos.y, tileSize, tileSize);
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
 
-                // Unit body
-                ctx.fillStyle = '#00bcd4'; // Cyan for player units
-                ctx.beginPath();
-                ctx.arc(pos.x + tileSize/2, pos.y + tileSize/2, tileSize/2.5, 0, Math.PI * 2);
-                ctx.fill();
+                // Unit Icon
+                let icon = '🧑';
+                if (unit.type === 'hunter') icon = '🏹';
+                else if (unit.type === 'crafter') icon = '⚒️';
+                else if (unit.type === 'shaman') icon = '🧙';
                 
-                // Border
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
+                drawIcon(unit.x, unit.y, icon);
                 drawHealthBar(pos.x, pos.y, unit.hp, unit.max_hp);
             });
         }

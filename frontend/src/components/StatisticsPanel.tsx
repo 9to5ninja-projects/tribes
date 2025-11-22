@@ -8,6 +8,7 @@ interface StatisticsPanelProps {
         scavengers: number[];
         avian: number[];
         aquatic: number[];
+        nomads?: number[];
         tribe: {
             total: number[];
             gatherer: number[];
@@ -25,7 +26,7 @@ const COLORS = [
     '#a4de6c', '#d0ed57', '#ffc0cb', '#cddc39', '#ffeb3b', '#ff9800', '#795548', '#607d8b'
 ];
 
-const SimpleLineChart = ({ data, title, isSimpleList = false }: { data: any, title: string, isSimpleList?: boolean }) => {
+const SimpleLineChart = ({ data, title, isSimpleList = false, extraSeries = [] }: { data: any, title: string, isSimpleList?: boolean, extraSeries?: {name: string, data: number[]}[] }) => {
     if (!data) return null;
     
     let speciesList: string[] = [];
@@ -41,6 +42,14 @@ const SimpleLineChart = ({ data, title, isSimpleList = false }: { data: any, tit
         maxLength = Math.max(...speciesList.map(s => data[s].length));
     }
     
+    // Handle extra series (like Nomads)
+    if (extraSeries.length > 0) {
+        extraSeries.forEach(s => {
+            if (s.data.length > maxLength) maxLength = s.data.length;
+            speciesList.push(s.name);
+        });
+    }
+    
     if (maxLength === 0) return <Typography>No data available</Typography>;
 
     const width = 500;
@@ -54,11 +63,20 @@ const SimpleLineChart = ({ data, title, isSimpleList = false }: { data: any, tit
     if (isSimpleList) {
         maxValue = Math.max(...data);
     } else {
-        speciesList.forEach(s => {
-            const max = Math.max(...data[s]);
-            if (max > maxValue) maxValue = max;
-        });
+        // Check main data
+        if (!isSimpleList && typeof data === 'object') {
+             Object.keys(data).forEach(s => {
+                const max = Math.max(...data[s]);
+                if (max > maxValue) maxValue = max;
+            });
+        }
     }
+    
+    // Check extra series max
+    extraSeries.forEach(s => {
+        const max = Math.max(...s.data);
+        if (max > maxValue) maxValue = max;
+    });
     
     // Add some headroom
     maxValue = Math.max(10, maxValue * 1.1);
@@ -78,7 +96,20 @@ const SimpleLineChart = ({ data, title, isSimpleList = false }: { data: any, tit
 
                 {/* Lines */}
                 {speciesList.map((species, index) => {
-                    const seriesData = isSimpleList ? data : data[species];
+                    let seriesData: number[] = [];
+                    
+                    // Check if it's an extra series
+                    const extra = extraSeries.find(s => s.name === species);
+                    if (extra) {
+                        seriesData = extra.data;
+                    } else if (isSimpleList) {
+                        seriesData = data;
+                    } else {
+                        seriesData = data[species];
+                    }
+                    
+                    if (!seriesData) return null;
+
                     const points = seriesData.map((val: number, i: number) => {
                         const x = padding + (i / (maxLength - 1)) * graphWidth;
                         const y = height - padding - (val / maxValue) * graphHeight;
@@ -116,7 +147,11 @@ export const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ history, death
 
     return (
         <Paper elevation={0} sx={{ p: 2 }}>
-            <SimpleLineChart data={history.tribe} title="Human Population (Tribe)" />
+            <SimpleLineChart 
+                data={history.tribe} 
+                title="Human Population" 
+                extraSeries={history.nomads ? [{name: 'Nomads', data: history.nomads}] : []}
+            />
             <SimpleLineChart data={history.herbivores} title="Herbivore Populations" />
             <SimpleLineChart data={history.predators} title="Predator Populations" />
             <SimpleLineChart data={history.avian} title="Avian Population" isSimpleList={true} />

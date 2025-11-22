@@ -17,8 +17,8 @@ def run_single_simulation(turns=100, seed=None):
     config.fog_of_war = False # Don't need fog for simulation
     
     # Suppress print output during simulation
-    original_stdout = sys.stdout
-    sys.stdout = open(os.devnull, 'w', encoding='utf-8')
+    # original_stdout = sys.stdout
+    # sys.stdout = open(os.devnull, 'w', encoding='utf-8')
     
     try:
         game = GameState(config)
@@ -45,9 +45,25 @@ def run_single_simulation(turns=100, seed=None):
             'food_chain': stats['food_chain'],
             'history': history
         }
+    except Exception as e:
+        sys.stderr.write(f"Simulation failed: {e}\n")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return {
+            'seed': config.seed,
+            'duration': 0,
+            'final_turn': 0,
+            'populations': {},
+            'events': {},
+            'extinctions': [],
+            'death_causes': {},
+            'food_chain': {},
+            'history': {}
+        }
     finally:
-        sys.stdout.close()
-        sys.stdout = original_stdout
+        # sys.stdout.close()
+        # sys.stdout = original_stdout
+        pass
 
 def run_batch_simulations(num_sims=10, turns_per_sim=100):
     print(f"Running {num_sims} simulations of {turns_per_sim} turns each...")
@@ -140,8 +156,11 @@ def analyze_results(results):
     avg_tribe = np.mean([r['populations'].get('tribe', 0) for r in results])
     print(f"  Avg Tribe Population: {avg_tribe:.1f}")
     
+    avg_nomads = np.mean([r['populations'].get('nomads', 0) for r in results])
+    print(f"  Avg Nomad Population: {avg_nomads:.1f}")
+    
     avg_insects = np.mean([r['populations'].get('insects', 0) for r in results])
-    print(f"  Avg Insect Density (Total): {avg_insects:.1f}")
+    print(f"  Avg Insect Count (Total): {avg_insects:,.0f}")
     
     # Events
     avg_disease_deaths = np.mean([r.get('events', {}).get('disease_deaths', 0) for r in results])

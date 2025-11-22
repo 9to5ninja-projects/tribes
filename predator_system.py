@@ -38,13 +38,21 @@ class Predator:
     
     def consume_energy(self, amount):
         """Reduce HP (metabolism)"""
-        damage = int(amount * self.combat_stats.max_hp)
+        damage_float = amount * self.combat_stats.max_hp
+        damage = int(damage_float)
+        if np.random.random() < (damage_float - damage):
+            damage += 1
+            
         if damage > 0:
             self.combat_stats.take_damage(damage)
     
     def gain_energy(self, amount):
         """Increase HP (eating)"""
-        heal = int(amount * self.combat_stats.max_hp)
+        heal_float = amount * self.combat_stats.max_hp
+        heal = int(heal_float)
+        if np.random.random() < (heal_float - heal):
+            heal += 1
+            
         self.combat_stats.heal(heal)
     
     def is_alive(self):
@@ -177,9 +185,13 @@ class PredatorSystem:
 
             predator.age += 1
             
+            # Get species data
+            species_data = self.predator_species[predator.species]
+            
             # Metabolism cost
             base_cost = 1
-            multiplier = PREDATOR_CONFIG.get('metabolism_multiplier', 1.0)
+            # Use species specific multiplier if available, else global config
+            multiplier = species_data.get('metabolism_multiplier', PREDATOR_CONFIG.get('metabolism_multiplier', 1.0))
             
             # Apply multiplier (probabilistic for fractional values)
             cost_float = base_cost * multiplier
@@ -460,7 +472,7 @@ class PredatorSystem:
 
         # --- HUNTING MOVEMENT ---
         # Scan for prey with high detection range
-        detection_range = 12 # Can see/smell far
+        detection_range = 7 # Reduced from 12 for performance
         
         best_prey_dist = 999
         target_dx, target_dy = 0, 0
@@ -469,7 +481,6 @@ class PredatorSystem:
         # Optimization: Scan in expanding rings or just check prey map?
         # Checking prey map is faster if sparse, but we don't have a global list of prey positions easily accessible 
         # except via self.prey_map which is hashed by position.
-        # Iterating 12x12 area is 144 checks. Acceptable.
         
         if is_hungry:
             # Look for closest prey

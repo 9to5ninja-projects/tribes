@@ -107,7 +107,10 @@ class InsectSystem:
         self.width = width
         self.height = height
         self.world = world_generator
-        self.density = np.zeros((height, width))
+        # Start with some insects (10-30% density)
+        self.density = np.random.uniform(0.1, 0.3, (height, width))
+        # 10 Billion per tile * 15,000 tiles = 150 Trillion global capacity
+        self.max_density_per_tile = 10_000_000_000 
     
     def update(self, climate_engine, vegetation_system):
         # Insects thrive in warm, moist, vegetated areas
@@ -132,10 +135,26 @@ class InsectSystem:
         self.density = np.clip(self.density, 0, 1.0)
         
     def consume(self, x, y, amount):
+        """
+        Consume insects. 
+        If amount > 1.0, it's a raw count (e.g. 5000 insects).
+        If amount <= 1.0, it's a density fraction (e.g. 0.1 = 10%).
+        Returns: Density fraction consumed.
+        """
         available = self.density[y, x]
-        consumed = min(available, amount)
-        self.density[y, x] -= consumed
-        return consumed
+        
+        if amount > 1.0:
+            # Convert count to density
+            density_cost = amount / self.max_density_per_tile
+        else:
+            density_cost = amount
+            
+        consumed_density = min(available, density_cost)
+        self.density[y, x] -= consumed_density
+        return consumed_density
+
+    def get_total_count(self):
+        return int(np.sum(self.density) * self.max_density_per_tile)
 
 
 class EventsEcologySystem:
@@ -541,10 +560,10 @@ class EventsEcologySystem:
             
             # Different feeding strategies
             if bird.species == 'songbird':
-                # Eat insects first
-                insects = self.insects.consume(bird.x, bird.y, 0.2)
-                if insects > 0.05:
-                    bird.gain_energy(insects)
+                # Eat insects first (approx 2500 per turn)
+                insects_density = self.insects.consume(bird.x, bird.y, 2500)
+                if insects_density > 0.0000001: # Any amount
+                    bird.gain_energy(0.15) # Good meal
                     if self.logger_callback and np.random.random() < 0.1:
                         self.logger_callback('predation', bird.species, 'insect')
                 else:
@@ -554,10 +573,10 @@ class EventsEcologySystem:
                         bird.gain_energy(0.08)
             
             elif bird.species == 'insectivore':
-                # Eat insects
-                insects = self.insects.consume(bird.x, bird.y, 0.3)
-                if insects > 0.05:
-                    bird.gain_energy(insects)
+                # Eat insects (approx 4000 per turn)
+                insects_density = self.insects.consume(bird.x, bird.y, 4000)
+                if insects_density > 0.0000001:
+                    bird.gain_energy(0.2)
                     if self.logger_callback and np.random.random() < 0.1:
                         self.logger_callback('predation', bird.species, 'insect')
             
@@ -565,9 +584,9 @@ class EventsEcologySystem:
                 # Need to be near water
                 if self.world.elevation[bird.y, bird.x] < 0.45:  # Near water
                     # Eat insects or aquatic plants
-                    insects = self.insects.consume(bird.x, bird.y, 0.15)
-                    bird.gain_energy(insects + 0.1)
-                    if self.logger_callback and insects > 0.05 and np.random.random() < 0.1:
+                    insects_density = self.insects.consume(bird.x, bird.y, 2000)
+                    bird.gain_energy(0.1 + (0.1 if insects_density > 0 else 0))
+                    if self.logger_callback and insects_density > 0 and np.random.random() < 0.1:
                         self.logger_callback('predation', bird.species, 'insect')
             
             elif bird.species == 'raptor':
@@ -681,10 +700,10 @@ class EventsEcologySystem:
                         aquatic.gain_energy(0.12)
                     
                     # Eat insects if near surface/land
-                    insects = self.insects.consume(aquatic.x, aquatic.y, 0.1)
-                    if insects > 0.01:
-                        aquatic.gain_energy(insects)
-                        if self.logger_callback and np.random.random() < 0.1:
+                    insects_density = self.insects.consume(aquatic.x, aquatic.y, 1500)
+                    if insects_density > 0.0000001:
+                        aquatic.gain_energy(0.04) # Reduced from 0.1
+                        if self.logger_callback and np.random.random() < 0.05:
                             self.logger_callback('predation', aquatic.species, 'insect')
                     
                     # School behavior - move randomly
@@ -749,13 +768,13 @@ class EventsEcologySystem:
             
             if aquatic.energy > 0.7 and aquatic.age > 4 and aquatic.reproductive_cooldown == 0:
                 if np.random.random() < repro_chance:
-                    offspring_count = 3 if aquatic.species == 'fish' else 1
+                    offspring_count = 2 if aquatic.species == 'fish' else 1 # Reduced from 3
                     for _ in range(offspring_count):
                         if np.random.random() < 0.5:
                             baby = AquaticCreature(aquatic.x, aquatic.y, aquatic.species)
                             baby.energy = 0.5
                             self.aquatic_creatures.append(baby)
-                    aquatic.reproductive_cooldown = 8
+                    aquatic.reproductive_cooldown = 10 # Increased from 8
             
             if aquatic.reproductive_cooldown > 0:
                 aquatic.reproductive_cooldown -= 1
@@ -792,7 +811,7 @@ class EventsEcologySystem:
             'scavengers': len(self.scavengers),
             'avian': len(self.avian_creatures),
             'aquatic': len(self.aquatic_creatures),
-            'insects': int(np.sum(self.insects.density)),
+            'insects': self.insects.get_total_count(),
             'active_diseases': len(self.diseases),
             'active_disasters': len(self.disasters),
             'carrion_sites': len(self.carrion_locations),

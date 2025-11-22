@@ -128,7 +128,8 @@ async def get_entities():
         "predators": [],
         "avian": [],
         "aquatic": [],
-        "scavengers": []
+        "scavengers": [],
+        "nomads": []
     }
     
     # Herbivores
@@ -158,6 +159,20 @@ async def get_entities():
                 "attack": int(pred.combat_stats.attack),
                 "defense": int(pred.combat_stats.defense)
             })
+            
+    # Nomads
+    if current_game.nomads:
+        for band in current_game.nomads.bands:
+            for member in band.members:
+                entities["nomads"].append({
+                    "id": member.id,
+                    "x": int(member.x),
+                    "y": int(member.y),
+                    "hp": int(member.hp),
+                    "max_hp": int(member.max_hp),
+                    "energy": int(member.energy),
+                    "band_id": band.id
+                })
     
     # Ecology
     if current_game.ecology:

@@ -31,12 +31,23 @@ export interface Entity {
     defense?: number;
 }
 
+export interface NomadEntity {
+    id: string;
+    x: number;
+    y: number;
+    hp: number;
+    max_hp: number;
+    energy: number;
+    band_id: string;
+}
+
 export interface EntityList {
     herbivores: Entity[];
     predators: Entity[];
     avian: Entity[];
     aquatic: Entity[];
     scavengers: Entity[];
+    nomads: NomadEntity[];
 }
 
 export interface GameStats {
@@ -55,6 +66,7 @@ export interface GameStats {
         scavengers: number[];
         avian: number[];
         aquatic: number[];
+        nomads?: number[];
         tribe: {
             total: number[];
             gatherer: number[];

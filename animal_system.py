@@ -40,14 +40,21 @@ class Animal:
     def consume_energy(self, amount):
         """Reduce HP (metabolism)"""
         # Convert float amount (0.0-1.0) to HP damage roughly
-        # 0.1 energy ~= 10% HP
-        damage = int(amount * self.combat_stats.max_hp)
+        damage_float = amount * self.combat_stats.max_hp
+        damage = int(damage_float)
+        if np.random.random() < (damage_float - damage):
+            damage += 1
+            
         if damage > 0:
             self.combat_stats.take_damage(damage)
     
     def gain_energy(self, amount):
         """Increase HP (from eating)"""
-        heal = int(amount * self.combat_stats.max_hp)
+        heal_float = amount * self.combat_stats.max_hp
+        heal = int(heal_float)
+        if np.random.random() < (heal_float - heal):
+            heal += 1
+            
         self.combat_stats.heal(heal)
     
     def is_alive(self):
@@ -153,9 +160,13 @@ class AnimalSystem:
 
             animal.age += 1
             
+            # Get species data for metabolism
+            species_data = self.herbivore_species[animal.species]
+            
             # Base metabolism cost (1 HP per turn + age factor)
             base_cost = 1
-            multiplier = HERBIVORE_CONFIG.get('metabolism_multiplier', 1.0)
+            # Use species specific multiplier if available, else global config
+            multiplier = species_data.get('metabolism_multiplier', HERBIVORE_CONFIG.get('metabolism_multiplier', 1.0))
             
             # Apply multiplier (probabilistic for fractional values)
             cost_float = base_cost * multiplier
@@ -370,9 +381,16 @@ class AnimalSystem:
         """Animal attempts to eat vegetation or insects"""
         # Insectivores (like frogs) eat insects if available
         if animal.species == 'frog' and self.ecology and self.ecology.insects:
-            consumed = self.ecology.insects.consume(animal.x, animal.y, amount=0.1)
-            if consumed > 0:
-                animal.gain_energy(consumed * 2.0) # Insects are very nutritious for frogs
+            # Try to eat 2000 insects
+            consumed_density = self.ecology.insects.consume(animal.x, animal.y, amount=2000)
+            
+            # Convert back to count to check if it was enough
+            # Note: max_density_per_tile is 10 Billion
+            count_consumed = consumed_density * self.ecology.insects.max_density_per_tile
+            
+            if count_consumed > 500: # At least 500 insects
+                # Boost energy gain to ensure survival (0.3 = 1.5 HP for 5 Max HP -> 1-2 HP gain)
+                animal.gain_energy(0.3)
                 return
 
         veg_density = self.vegetation.density[animal.y, animal.x]

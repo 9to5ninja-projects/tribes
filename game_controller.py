@@ -8,6 +8,7 @@ from vegetation_system import VegetationSystem
 from animal_system import AnimalSystem
 from predator_system import PredatorSystem
 from events_ecology import EventsEcologySystem
+from nomad_system import NomadSystem
 from balance_config import apply_balance_to_game, SPAWN_CONFIG
 from tribe_system import Tribe, Unit, UnitType, StructureType
 
@@ -95,6 +96,7 @@ class GameState:
         self.animals = None
         self.predators = None
         self.ecology = None
+        self.nomads = None
         self.tribe = None  # The player's tribe
         self.resource_map = {} # (x,y) -> {resource_type: amount}
         
@@ -222,6 +224,12 @@ class GameState:
         self.ecology.disease_spawn_rate = self.config.disease_frequency
         self.ecology.disaster_spawn_rate = self.config.disaster_frequency
         
+        # Initialize Nomads
+        print("\nInitializing Nomad Bands...")
+        self.nomads = NomadSystem(self.world, self.animals)
+        self.nomads.set_logger(self.log_interaction)
+        self.nomads.spawn_nomads(count=8) # Start with 8 bands
+
         # Generate Resources
         self._generate_resources()
 
@@ -378,6 +386,9 @@ class GameState:
         
         # New Year - Food Consumption
         if self.climate.season == 0 and self.tribe:
+            # Auto-survive for simulation mode (gather resources if possible)
+            self.tribe.auto_survive(self.resource_map)
+            
             success, msg = self.tribe.consume_food()
             self.add_event_log(msg)
             if not success:
@@ -392,6 +403,8 @@ class GameState:
         self.animals.update(self.climate, predators_list=predators_list, tribe_units=tribe_units)
         self.predators.update(self.climate, tribe_units=tribe_units)
         self.ecology.update(self.climate)
+        if self.nomads:
+            self.nomads.update()
         
         # Cleanup dead units
         if self.tribe:
@@ -447,6 +460,9 @@ class GameState:
             history['avian'] = self.ecology.avian_history
             history['aquatic'] = self.ecology.aquatic_history
             
+        if self.nomads:
+            history['nomads'] = self.nomads.population_history
+            
         if self.tribe:
             history['tribe'] = self.tribe.population_history
             
@@ -479,12 +495,12 @@ class GameState:
             # actor = attacker species, target = target name, details = damage info
             msg = f"{actor.capitalize()} attacked {target}! {details}"
             self.add_event_log(msg)
-            print(f"⚔️ {msg}")
+            # print(f"⚔️ {msg}") # Disabled for performance
             
         elif type == 'kill':
             msg = f"{actor.capitalize()} killed {target}!"
             self.add_event_log(msg)
-            print(f"💀 {msg}")
+            # print(f"💀 {msg}") # Disabled for performance
 
     def add_event_log(self, message):
         """Add a message to the event log"""
@@ -558,6 +574,11 @@ class GameState:
                 'disaster_deaths': ecology_stats['disaster_deaths']
             }
             
+        if self.nomads:
+            nomad_stats = self.nomads.get_statistics()
+            stats['populations']['nomads'] = nomad_stats['population']
+            stats['populations']['nomad_bands'] = nomad_stats['bands']
+            
         if self.tribe:
             stats['populations']['tribe'] = len(self.tribe.units)
         
@@ -601,7 +622,7 @@ class SaveSystem:
         print(f"Saving game to {filepath}...")
         
         save_data = {
-            'version': '0.19.0',
+            'version': '0.20.0',
             'timestamp': datetime.now().isoformat(),
             'config': game_state.config.to_dict(),
             'turn': game_state.turn,
@@ -661,6 +682,21 @@ class SaveSystem:
                 } for a in game_state.ecology.aquatic_creatures
             ],
             
+            # Nomads
+            'nomads': [
+                {
+                    'x': b.x, 'y': b.y,
+                    'food_stock': b.food_stock,
+                    'members': [
+                        {
+                            'x': m.x, 'y': m.y,
+                            'hp': m.hp, 'energy': m.energy,
+                            'age': m.age, 'kills': m.kills
+                        } for m in b.members
+                    ]
+                } for b in game_state.nomads.bands
+            ] if game_state.nomads else [],
+            
             # Tribe
             'tribe': game_state.tribe.to_dict() if game_state.tribe else None,
             
@@ -668,6 +704,7 @@ class SaveSystem:
             'history_scavengers': game_state.ecology.scavenger_history,
             'history_avian': game_state.ecology.avian_history,
             'history_aquatic': game_state.ecology.aquatic_history,
+            'history_nomads': game_state.nomads.population_history if game_state.nomads else [],
             'history_tribe': game_state.tribe.population_history if game_state.tribe else {},
             'history_herbivores': game_state.animals.population_history if game_state.animals else {},
             'history_predators': game_state.predators.population_history if game_state.predators else {}
@@ -781,6 +818,29 @@ class SaveSystem:
         if 'history_predators' in save_data and game_state.predators:
             game_state.predators.population_history = save_data['history_predators']
         
+        # Restore Nomads
+        if 'nomads' in save_data:
+            game_state.nomads = NomadSystem(game_state.world, game_state.animals)
+            game_state.nomads.set_logger(game_state.log_interaction)
+            from nomad_system import NomadBand, NomadHunter
+            
+            for b_data in save_data['nomads']:
+                band = NomadBand(b_data['x'], b_data['y'], size=0) # Init empty
+                band.food_stock = b_data['food_stock']
+                
+                for m_data in b_data['members']:
+                    hunter = NomadHunter(m_data['x'], m_data['y'])
+                    hunter.hp = m_data['hp']
+                    hunter.energy = m_data['energy']
+                    hunter.age = m_data['age']
+                    hunter.kills = m_data['kills']
+                    band.members.append(hunter)
+                
+                game_state.nomads.bands.append(band)
+            
+            if 'history_nomads' in save_data:
+                game_state.nomads.population_history = save_data['history_nomads']
+
         # Restore Tribe
         if 'tribe' in save_data and save_data['tribe']:
             from tribe_system import Tribe, Unit, Structure, UnitType, StructureType
