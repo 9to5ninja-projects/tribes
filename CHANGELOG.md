@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0] - 2025-11-21
+### Added
+- **Ecosystem Simulation Tools**:
+  - Created `run_simulation.py` for headless batch testing of ecosystem balance.
+  - Added detailed annual reports and stability analysis (extinction rates, death causes).
+- **Advanced Population Tracking**:
+  - Implemented full history tracking for all ecological layers (Avian, Aquatic, Scavenger) and Tribe classes.
+  - Added "Food Chain" and "Death Causes" visualization to the Statistics Panel.
+- **Game Configuration**:
+  - Added "Random" biome choice and "Fog of War" toggle to New Game dialog.
+
+### Fixed
+- **Persistence System**:
+  - Fixed critical bug where Tribe data and Population History were not being saved/loaded correctly.
+  - Fixed "No data available" issue on graphs for new games by properly initializing history arrays.
+- **Simulation Stability**:
+  - Fixed encoding issues in simulation reporting.
+  - Fixed crash when initializing world balance in headless mode.
+
 ## [0.17.0] - 2025-11-21
 ### Added
 - **Culture System**:

@@ -2,4 +2,6 @@ numpy==2.2.6
 matplotlib==3.10.5
 fastapi
 uvicorn
+pandas
+pydantic
 
