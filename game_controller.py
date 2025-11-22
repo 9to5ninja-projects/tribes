@@ -601,7 +601,7 @@ class SaveSystem:
         print(f"Saving game to {filepath}...")
         
         save_data = {
-            'version': '0.3.0',
+            'version': '0.19.0',
             'timestamp': datetime.now().isoformat(),
             'config': game_state.config.to_dict(),
             'turn': game_state.turn,

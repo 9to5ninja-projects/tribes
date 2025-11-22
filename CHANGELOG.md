@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.0] - 2025-11-22
+### Added
+- **Ecosystem Connectivity**:
+  - **Insect Food Web**: Connected the global `InsectSystem` to the animal simulation.
+    - Insectivores (Frogs, Giant Toads) now directly consume insects from the density map for energy.
+    - Scavengers and opportunistic predators (e.g., Bears, Foxes) can now supplement their diet with insects.
+  - **Simulation Reporting**:
+    - Enhanced `run_simulation.py` to track and report average populations for all ecological layers: Scavengers, Avian, Aquatic, and Tribe.
+    - Added specific reporting for **Insect Density**, **Disease Deaths**, and **Disaster Deaths**.
+
+### Changed
+- **Balance Tuning**:
+  - **Insect Buff**: Significantly increased insect growth rates and nutritional value to support the new food web dependencies.
+  - **Amphibian Survival**: Adjusted metabolism and reproduction thresholds for Frogs and Giant Toads to help them survive (though they remain fragile).
+  - **Scavenging Logic**: Updated scavenger AI to check for insects if carrion is scarce.
+- **Stat Updates**:
+  - Completed SRPG stat definitions for **Snake** and **Giant Toad** in `srpg_stats.py`.
+
 ## [0.18.0] - 2025-11-21
 ### Added
 - **Ecosystem Simulation Tools**:
